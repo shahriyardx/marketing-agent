@@ -46,3 +46,12 @@ See [ux/taste.md](ux/taste.md)
 - Use faker.js to populate template variables with realistic fake data in preview mode instead of showing raw {{variable}} placeholders. Confidence: 0.70
 - Template edit should be a separate page from template create — do not share the same page component for both workflows. Confidence: 0.70
 
+# Git
+- Do not include Co-authored-by (or similar) trailers in commit messages — keep commit messages clean without bot attribution lines. Confidence: 0.85
+
+# Data
+- When seeding data for sorting-dependent features, use explicit distinct timestamps (e.g., random dates via faker or sequential dates) instead of Promise.all concurrent creation — identical createdAt values cause non-deterministic sort order in PostgreSQL. Confidence: 0.65
+
+# Navigation
+- When a page already has a visible action button (e.g., "New Template" on templates page), do not create a sidebar submenu for that action — keep the nav item as a single link to the main page. Confidence: 0.65
+
