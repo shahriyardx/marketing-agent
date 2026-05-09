@@ -4,7 +4,13 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Sparkles, TrendingUp, BarChart3, Target } from "lucide-react"
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
 import { LoginForm } from "@/components/login-form"
 import { RegisterForm } from "@/components/register-form"
 
@@ -12,22 +18,26 @@ const features = [
   {
     icon: Sparkles,
     title: "AI-Powered Campaigns",
-    description: "Generate high-converting marketing content in seconds using advanced AI models.",
+    description:
+      "Generate high-converting marketing content in seconds using advanced AI models.",
   },
   {
     icon: Target,
     title: "Precision Targeting",
-    description: "Reach the right audience with data-driven segmentation and personalization.",
+    description:
+      "Reach the right audience with data-driven segmentation and personalization.",
   },
   {
     icon: TrendingUp,
     title: "Performance Analytics",
-    description: "Track ROI, engagement, and conversions with real-time dashboards.",
+    description:
+      "Track ROI, engagement, and conversions with real-time dashboards.",
   },
   {
     icon: BarChart3,
     title: "Smart Optimization",
-    description: "Automatically A/B test and optimize campaigns for maximum results.",
+    description:
+      "Automatically A/B test and optimize campaigns for maximum results.",
   },
 ]
 
@@ -70,7 +80,9 @@ export default function Page() {
       <div className="flex items-center justify-center p-6">
         <Card className="w-full max-w-sm">
           <CardHeader>
-            <CardTitle>{mode === "login" ? "Welcome back" : "Create an account"}</CardTitle>
+            <CardTitle>
+              {mode === "login" ? "Welcome back" : "Create an account"}
+            </CardTitle>
             <CardDescription>
               {mode === "login"
                 ? "Sign in to your account to continue."
