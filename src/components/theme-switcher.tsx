@@ -24,8 +24,7 @@ export function ThemeSwitcher() {
           onClick={() => setTheme(key)}
           className={cn(
             "flex-1",
-            theme === key &&
-              "bg-sidebar-accent text-sidebar-accent-foreground",
+            theme === key && "bg-sidebar-accent text-sidebar-accent-foreground",
           )}
           title={label}
         >

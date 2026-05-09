@@ -1,12 +1,7 @@
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { headers } from "next/headers"
-import {
-  MegaphoneIcon,
-  UsersIcon,
-  FileTextIcon,
-  MailIcon,
-} from "lucide-react"
+import { MegaphoneIcon, UsersIcon, FileTextIcon, MailIcon } from "lucide-react"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -23,22 +18,28 @@ export default async function DashboardPage() {
     headers: await headers(),
   })
 
-  const [campaignCount, contactCount, templateCount, mailgunCount, recentContacts, recentCampaigns] =
-    await Promise.all([
-      prisma.campaign.count(),
-      prisma.contact.count(),
-      prisma.emailTemplate.count(),
-      prisma.mailgunAccount.count({ where: { enabled: true } }),
-      prisma.contact.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
-      prisma.campaign.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        include: {
-          template: { select: { name: true } },
-          mailgunAccount: { select: { name: true } },
-        },
-      }),
-    ])
+  const [
+    campaignCount,
+    contactCount,
+    templateCount,
+    mailgunCount,
+    recentContacts,
+    recentCampaigns,
+  ] = await Promise.all([
+    prisma.campaign.count(),
+    prisma.contact.count(),
+    prisma.emailTemplate.count(),
+    prisma.mailgunAccount.count({ where: { enabled: true } }),
+    prisma.contact.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
+    prisma.campaign.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      include: {
+        template: { select: { name: true } },
+        mailgunAccount: { select: { name: true } },
+      },
+    }),
+  ])
 
   return (
     <>
@@ -149,9 +150,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             {recentCampaigns.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No campaigns yet.
-              </p>
+              <p className="text-sm text-muted-foreground">No campaigns yet.</p>
             ) : (
               <Table>
                 <TableHeader>
@@ -166,10 +165,10 @@ export default async function DashboardPage() {
                     <TableRow key={c.id}>
                       <TableCell className="font-medium">{c.name}</TableCell>
                       <TableCell className="text-muted-foreground">
-                        {c.template.name}
+                        {c.template?.name ?? "—"}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {c.mailgunAccount.name}
+                        {c.mailgunAccount?.name ?? "—"}
                       </TableCell>
                     </TableRow>
                   ))}

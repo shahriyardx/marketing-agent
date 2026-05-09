@@ -120,7 +120,7 @@ export default function TemplatesPage() {
                         variant="ghost"
                         size="icon-sm"
                         onClick={() =>
-                          router.push(`/dashboard/templates/create?id=${t.id}`)
+                          router.push(`/dashboard/templates/${t.id}`)
                         }
                       >
                         <PencilIcon />

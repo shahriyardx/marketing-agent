@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -47,8 +47,8 @@ type Campaign = {
   id: string
   name: string
   enabled: boolean
-  mailgunAccount: { id: string; name: string }
-  template: { id: string; name: string }
+  mailgunAccount: { id: string; name: string; enabled: boolean } | null
+  template: { id: string; name: string } | null
   createdAt: Date | string
 }
 
@@ -64,6 +64,10 @@ export default function CampaignsPage() {
   const { data: campaigns = [] } = trpc.campaigns.getAll.useQuery()
   const { data: mailgunAccounts = [] } = trpc.mailgun.getAll.useQuery()
   const { data: templates = [] } = trpc.templates.getAll.useQuery()
+
+  useEffect(() => {
+    fixMissing.mutate()
+  }, [])
   const createMutation = trpc.campaigns.create.useMutation({
     onSuccess: () => {
       setCreateOpen(false)
@@ -85,6 +89,10 @@ export default function CampaignsPage() {
     onSuccess: () => utils.campaigns.getAll.invalidate(),
   })
 
+  const fixMissing = trpc.campaigns.fixMissing.useMutation({
+    onSuccess: () => utils.campaigns.getAll.invalidate(),
+  })
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { name: "", mailgunAccountId: "", templateId: "" },
@@ -103,8 +111,8 @@ export default function CampaignsPage() {
     setEditTarget(c)
     form.reset({
       name: c.name,
-      mailgunAccountId: c.mailgunAccount.id,
-      templateId: c.template.id,
+      mailgunAccountId: c.mailgunAccount?.id ?? "",
+      templateId: c.template?.id ?? "",
     })
   }
 
@@ -139,10 +147,7 @@ export default function CampaignsPage() {
                 Select a template and Mailgun account for this campaign.
               </DialogDescription>
             </DialogHeader>
-            <form
-              onSubmit={form.handleSubmit(onCreate)}
-              className="space-y-4"
-            >
+            <form onSubmit={form.handleSubmit(onCreate)} className="space-y-4">
               <FieldGroup>
                 <Controller
                   name="name"
@@ -240,9 +245,7 @@ export default function CampaignsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Campaign</DialogTitle>
-            <DialogDescription>
-              Update the campaign settings.
-            </DialogDescription>
+            <DialogDescription>Update the campaign settings.</DialogDescription>
           </DialogHeader>
           <form onSubmit={form.handleSubmit(onEdit)} className="space-y-4">
             <FieldGroup>
@@ -269,10 +272,7 @@ export default function CampaignsPage() {
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel htmlFor="ec-template">Template</FieldLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                    >
+                    <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a template" />
                       </SelectTrigger>
@@ -298,10 +298,7 @@ export default function CampaignsPage() {
                     <FieldLabel htmlFor="ec-mailgun">
                       Mailgun Account
                     </FieldLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                    >
+                    <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select an account" />
                       </SelectTrigger>
@@ -380,53 +377,79 @@ export default function CampaignsPage() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {campaigns.map((c) => (
-            <Card
-              key={c.id}
-              className={cn(!c.enabled && "opacity-50")}
-            >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle
-                  className={cn(
-                    "text-xs font-medium",
-                    !c.enabled && "text-muted-foreground",
+          {campaigns.map((c) => {
+            const missing: string[] = []
+            if (!c.template) missing.push("Template is missing")
+            if (!c.mailgunAccount)
+              missing.push("Mailgun is missing")
+            else if (!c.mailgunAccount.enabled)
+              missing.push("Mailgun is disabled")
+            const hasIssue = missing.length > 0
+
+            return (
+              <Card
+                key={c.id}
+                className={cn(
+                  !c.enabled && "opacity-50",
+                  hasIssue &&
+                    "border-yellow-600/50 dark:border-yellow-500/50",
+                )}
+              >
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle
+                    className={cn(
+                      "text-xs font-medium",
+                      (!c.enabled || hasIssue) &&
+                        "text-muted-foreground",
+                    )}
+                  >
+                    {c.name}
+                  </CardTitle>
+                  <div className="flex items-center gap-1">
+                    <Switch
+                      checked={c.enabled}
+                      disabled={hasIssue}
+                      onCheckedChange={(checked) =>
+                        toggleMutation.mutate({
+                          id: c.id,
+                          enabled: checked,
+                        })
+                      }
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => openEdit(c)}
+                    >
+                      <PencilIcon />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() =>
+                        setDeleteTarget({ id: c.id, name: c.name })
+                      }
+                    >
+                      <Trash2Icon />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {hasIssue ? (
+                    <div className="space-y-1 text-xs text-yellow-600 dark:text-yellow-500">
+                      {missing.map((m) => (
+                        <p key={m}>{m}</p>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-1 text-xs text-muted-foreground">
+                      <p>Template: {c.template?.name}</p>
+                      <p>Mailgun: {c.mailgunAccount?.name}</p>
+                    </div>
                   )}
-                >
-                  {c.name}
-                </CardTitle>
-                <div className="flex items-center gap-1">
-                  <Switch
-                    checked={c.enabled}
-                    onCheckedChange={(checked) =>
-                      toggleMutation.mutate({ id: c.id, enabled: checked })
-                    }
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => openEdit(c)}
-                  >
-                    <PencilIcon />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() =>
-                      setDeleteTarget({ id: c.id, name: c.name })
-                    }
-                  >
-                    <Trash2Icon />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <p>Template: {c.template.name}</p>
-                  <p>Mailgun: {c.mailgunAccount.name}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            )})}
         </div>
       )}
     </>

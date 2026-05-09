@@ -135,15 +135,15 @@ model Contact {
 }
 
 model Campaign {
-  id              String         @id @default(cuid())
-  name            String
-  enabled         Boolean        @default(true)
-  mailgunAccountId String
-  mailgunAccount  MailgunAccount @relation(fields: [mailgunAccountId], references: [id], onDelete: Cascade)
-  templateId      String
-  template        EmailTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id                String          @id @default(cuid())
+  name              String
+  enabled           Boolean         @default(true)
+  mailgunAccountId  String?
+  mailgunAccount    MailgunAccount? @relation(fields: [mailgunAccountId], references: [id], onDelete: SetNull)
+  templateId        String?
+  template          EmailTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   @@map("campaign")
 }

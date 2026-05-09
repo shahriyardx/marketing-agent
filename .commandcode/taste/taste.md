@@ -27,19 +27,22 @@
 - Mask sensitive API keys at the tRPC router/API level before returning to the client — not in the frontend UI. The API response itself should contain masked keys ("*******asjk" format, only last 4 chars visible), so the raw key never reaches the browser. Confidence: 0.75
 
 # Forms
-- Share the same form component and validation schema between create and edit workflows — don't duplicate schemas/forms when the fields are nearly identical. Use conditional validation (e.g., required for create, optional for edit) within a single schema rather than maintaining separate schemas. Confidence: 0.70
+- Share the same form component and validation schema between create and edit workflows — don't duplicate schemas/forms when the fields are nearly identical. Use conditional validation (e.g., required for create, optional for edit) within a single schema rather than maintaining separate schemas. Confidence: 0.80
 - When a form field doesn't fit neatly into the zod schema (e.g., an API key with conditional validation), use react-hook-form's form.setError() instead of managing separate useState error variables. Confidence: 0.75
 
 # Code-Editor
 - Use Monaco Editor (@monaco-editor/react) for code editing — include line numbers, glyph margin, and folding enabled, no minimap, theme synced to the site's dark/light mode, and padding on all sides (not just top). Confidence: 0.80
+- Enable autoClosingTags, autoClosingQuotes, and autoClosingBrackets in Monaco editor options (all set to "always"). Confidence: 0.65
 
 # UX
 See [ux/taste.md](ux/taste.md)
 # Data
 - Store boolean app settings as actual boolean values in the database, not as strings like "true"/"false". Confidence: 0.75
 - For API keys, hard-delete the record rather than soft-delete (revokedAt). Confidence: 0.70
+- When a related entity (mailgun account, template) is deleted or disabled, do not cascade-delete dependent campaigns — instead auto-disable the campaign (set enabled=false), prevent re-enabling via the switch, allow only editing to fix the missing reference, show a yellow border with precise messaging ("Template is missing", "Mailgun is missing", or "Mailgun is disabled"), and hide the template/mailgun names from the card when unavailable. Confidence: 0.85
 
 # Templates
 - Use Handlebars for email template variable replacement ({{variable}} syntax). Confidence: 0.70
 - Use faker.js to populate template variables with realistic fake data in preview mode instead of showing raw {{variable}} placeholders. Confidence: 0.70
+- Template edit should be a separate page from template create — do not share the same page component for both workflows. Confidence: 0.70
 
