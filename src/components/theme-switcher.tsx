@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 export function ThemeSwitcher() {
-  const { setTheme, resolvedTheme } = useTheme()
+  const { setTheme, theme } = useTheme()
 
   const themes = [
     { key: "system", icon: MonitorIcon, label: "System" },
@@ -15,7 +15,7 @@ export function ThemeSwitcher() {
   ] as const
 
   return (
-    <div className="flex items-center gap-0.5 px-2">
+    <div className="flex items-center gap-0.5 border-b px-2 pb-2">
       {themes.map(({ key, icon: Icon, label }) => (
         <Button
           key={key}
@@ -24,7 +24,7 @@ export function ThemeSwitcher() {
           onClick={() => setTheme(key)}
           className={cn(
             "flex-1",
-            resolvedTheme === key &&
+            theme === key &&
               "bg-sidebar-accent text-sidebar-accent-foreground",
           )}
           title={label}

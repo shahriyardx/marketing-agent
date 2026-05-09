@@ -10,7 +10,7 @@
 - Avoid "Built with X" or marketing-style footer text in UI components. Keep copy professional and product-focused. Confidence: 0.75
 - Extract forms into individual separate component files (e.g., login-form.tsx, register-form.tsx) — do not combine multiple form components in a single file, and do not inline forms into page components. Confidence: 0.75
 - Always use the shadcn Button component instead of raw HTML <button> elements. Confidence: 0.70
-- Use shadcn/ui components (Table, etc.) instead of raw HTML elements — prioritize consistency with the design system across all pages. Confidence: 0.70
+- Use shadcn/ui components (Select, Table, etc.) instead of raw HTML elements — prioritize consistency with the design system across all pages. Confidence: 0.75
 
 # Env
 - For Next.js env management, use @t3-oss/env-nextjs instead of dotenv. Confidence: 0.65
@@ -34,12 +34,7 @@
 - Use Monaco Editor (@monaco-editor/react) for code editing — include line numbers, glyph margin, and folding enabled, no minimap, theme synced to the site's dark/light mode, and padding on all sides (not just top). Confidence: 0.80
 
 # UX
-- For HTML editor with preview, use shadcn Tabs with \"HTML\" and \"Preview\" as the tab labels directly (no separate label element) — when preview tab is active, the HTML editor is hidden, and vice versa. Confidence: 0.70
-- Use shadcn Dialog for delete/destructive action confirmations instead of performing the action immediately on click. Confidence: 0.75
-- For data tables on mobile, show all columns and let the table auto-scroll horizontally — do not hide columns with hidden/responsive classes. Confidence: 0.70
-- Dashboard admin pages (API Keys, Mailgun, Settings, etc.) should have visually distinct layouts rather than reusing the same card-grid pattern — each page should feel purpose-built. Confidence: 0.70
-- Display API key usage instructions in "Authorization: Bearer <key>" format so users know how to use the key in requests. Confidence: 0.70
-
+See [ux/taste.md](ux/taste.md)
 # Data
 - Store boolean app settings as actual boolean values in the database, not as strings like "true"/"false". Confidence: 0.75
 - For API keys, hard-delete the record rather than soft-delete (revokedAt). Confidence: 0.70

@@ -6,8 +6,10 @@ import {
   KeyRoundIcon,
   LayoutDashboardIcon,
   MailIcon,
+  MegaphoneIcon,
   PlusIcon,
   Settings2Icon,
+  UsersRoundIcon,
 } from "lucide-react"
 
 import {
@@ -38,6 +40,18 @@ export function NavMain() {
             <a href="/dashboard">
               <LayoutDashboardIcon />
               <span>Dashboard</span>
+            </a>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            asChild
+            isActive={pathname.startsWith("/dashboard/campaigns")}
+          >
+            <a href="/dashboard/campaigns">
+              <MegaphoneIcon />
+              <span>Campaigns</span>
             </a>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -99,6 +113,17 @@ export function NavMain() {
             <a href="/dashboard/mailgun">
               <MailIcon />
               <span>Mailgun</span>
+            </a>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            asChild
+            isActive={pathname.startsWith("/dashboard/contacts")}
+          >
+            <a href="/dashboard/contacts">
+              <UsersRoundIcon />
+              <span>Contacts</span>
             </a>
           </SidebarMenuButton>
         </SidebarMenuItem>
