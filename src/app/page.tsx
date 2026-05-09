@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/card"
 import { LoginForm } from "@/components/login-form"
 import { RegisterForm } from "@/components/register-form"
+import { Button } from "@/components/ui/button"
+import { trpc } from "@/lib/trpc/client"
 
 const features = [
   {
@@ -44,6 +46,9 @@ const features = [
 export default function Page() {
   const [mode, setMode] = useState<"login" | "register">("login")
   const router = useRouter()
+
+  const { data: registrationEnabled = true } =
+    trpc.settings.getRegistrationEnabled.useQuery()
 
   function handleSuccess() {
     router.push("/dashboard")
@@ -92,32 +97,39 @@ export default function Page() {
           <CardContent>
             {mode === "login" ? (
               <LoginForm onSuccess={handleSuccess} />
-            ) : (
+            ) : registrationEnabled ? (
               <RegisterForm onSuccess={handleSuccess} />
+            ) : (
+              <div className="rounded-none border bg-muted/30 px-4 py-6 text-center">
+                <p className="text-sm font-medium">Registration Disabled</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  New account creation is currently unavailable.
+                </p>
+              </div>
             )}
 
             <div className="mt-4 text-center text-xs text-muted-foreground">
               {mode === "login" ? (
                 <>
                   Don&apos;t have an account?{" "}
-                  <button
+                  <Button
+                    variant="link"
                     type="button"
                     onClick={() => setMode("register")}
-                    className="font-medium text-primary underline-offset-4 hover:underline"
                   >
                     Sign up
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <>
                   Already have an account?{" "}
-                  <button
+                  <Button
+                    variant="link"
                     type="button"
                     onClick={() => setMode("login")}
-                    className="font-medium text-primary underline-offset-4 hover:underline"
                   >
                     Sign in
-                  </button>
+                  </Button>
                 </>
               )}
             </div>

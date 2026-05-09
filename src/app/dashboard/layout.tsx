@@ -3,8 +3,6 @@ import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 
 import { DashboardShell } from "@/components/dashboard-shell"
-import { TRPCProvider } from "@/components/trpc-provider"
-import { TooltipProvider } from "@/components/ui/tooltip"
 
 export default async function DashboardLayout({
   children,
@@ -19,11 +17,5 @@ export default async function DashboardLayout({
     redirect("/")
   }
 
-  return (
-    <TRPCProvider>
-      <TooltipProvider>
-        <DashboardShell>{children}</DashboardShell>
-      </TooltipProvider>
-    </TRPCProvider>
-  )
+  return <DashboardShell>{children}</DashboardShell>
 }

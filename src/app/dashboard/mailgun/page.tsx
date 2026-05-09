@@ -7,6 +7,7 @@ import { z } from "zod"
 import { PlusIcon, Trash2Icon } from "lucide-react"
 
 import { trpc } from "@/lib/trpc/client"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -28,15 +29,32 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 
 const schema = z.object({
-  name: z.string().min(1, "Name is required"),
-  apiKey: z.string().min(1, "API key is required"),
-  domain: z.string().min(1, "Domain is required"),
+  name: z.string().min(1, "Account name is required"),
+  apiKey: z
+    .string()
+    .min(1, "API key is required")
+    .refine((v) => v.startsWith("key-") || v.length >= 20, {
+      message: "Enter a valid Mailgun API key",
+    }),
+  domain: z
+    .string()
+    .min(1, "Domain is required")
+    .regex(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, "Enter a valid domain"),
 })
 
 type FormValues = z.infer<typeof schema>
 
+function maskKey(key: string) {
+  if (key.length <= 10) return `${key.slice(0, 4)}****`
+  return `${key.slice(0, 6)}…${key.slice(-4)}`
+}
+
 export default function MailgunPage() {
   const [open, setOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string
+    name: string
+  } | null>(null)
 
   const utils = trpc.useUtils()
   const { data: accounts = [] } = trpc.mailgun.getAll.useQuery()
@@ -78,9 +96,17 @@ export default function MailgunPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {accounts.map((account) => (
-          <Card key={account.id}>
+          <Card
+            key={account.id}
+            className={cn(!account.enabled && "opacity-50")}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-medium">
+              <CardTitle
+                className={cn(
+                  "text-xs font-medium",
+                  !account.enabled && "text-muted-foreground",
+                )}
+              >
                 {account.name}
               </CardTitle>
               <div className="flex items-center gap-2">
@@ -90,26 +116,65 @@ export default function MailgunPage() {
                     toggleMutation.mutate({ id: account.id, enabled: checked })
                   }
                 />
-                <button
-                  onClick={() => deleteMutation.mutate({ id: account.id })}
-                  className="text-muted-foreground hover:text-destructive"
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() =>
+                    setDeleteTarget({ id: account.id, name: account.name })
+                  }
                 >
-                  <Trash2Icon className="size-3.5" />
-                </button>
+                  <Trash2Icon />
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-1 text-xs text-muted-foreground">
-                <p className="truncate font-mono">{account.apiKey}</p>
+                <p className="truncate font-mono">{maskKey(account.apiKey)}</p>
                 <p>{account.domain}</p>
               </div>
             </CardContent>
           </Card>
         ))}
 
+        <Dialog
+          open={!!deleteTarget}
+          onOpenChange={(v) => {
+            if (!v) setDeleteTarget(null)
+          }}
+        >
+          <DialogContent showCloseButton={false}>
+            <DialogHeader>
+              <DialogTitle>Delete Mailgun Account</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete{" "}
+                <span className="font-medium text-foreground">
+                  {deleteTarget?.name}
+                </span>
+                ? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={deleteMutation.isPending}
+                onClick={() => {
+                  if (!deleteTarget) return
+                  deleteMutation.mutate({ id: deleteTarget.id })
+                  setDeleteTarget(null)
+                }}
+              >
+                {deleteMutation.isPending ? "Deleting…" : "Delete"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Card className="flex cursor-pointer items-center justify-center border-dashed p-8 text-muted-foreground transition-colors hover:border-primary hover:text-primary">
+            <Card className="flex cursor-pointer items-center justify-center border-2 border-dashed border-muted-foreground/25 bg-muted/30 p-8 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-muted/50 hover:text-primary dark:bg-muted/10 dark:hover:bg-muted/20">
               <div className="flex flex-col items-center gap-2">
                 <PlusIcon className="size-5" />
                 <span className="text-xs font-medium">Add Mailgun Account</span>

@@ -1,7 +1,7 @@
 "use client"
 
 import { usePathname } from "next/navigation"
-import { LayoutDashboardIcon, MailIcon } from "lucide-react"
+import { LayoutDashboardIcon, MailIcon, Settings2Icon } from "lucide-react"
 
 import {
   SidebarGroup,
@@ -25,10 +25,24 @@ export function NavMain() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/mailgun")}>
+          <SidebarMenuButton
+            asChild
+            isActive={pathname.startsWith("/dashboard/mailgun")}
+          >
             <a href="/dashboard/mailgun">
               <MailIcon />
               <span>Mailgun</span>
+            </a>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            asChild
+            isActive={pathname.startsWith("/dashboard/settings")}
+          >
+            <a href="/dashboard/settings">
+              <Settings2Icon />
+              <span>Settings</span>
             </a>
           </SidebarMenuButton>
         </SidebarMenuItem>

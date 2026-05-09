@@ -90,3 +90,11 @@ model Verification {
   @@index([identifier])
   @@map("verification")
 }
+
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("app_setting")
+}

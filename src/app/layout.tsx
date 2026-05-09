@@ -1,9 +1,8 @@
 import { Geist, JetBrains_Mono, Inter } from "next/font/google"
 
 import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils"
-import { TooltipProvider } from "@/components/ui/tooltip"
+import { ClientProviders } from "@/components/client-providers"
 
 const interHeading = Inter({ subsets: ["latin"], variable: "--font-heading" })
 
@@ -35,9 +34,7 @@ export default function RootLayout({
       )}
     >
       <body>
-        <TooltipProvider>
-          <ThemeProvider>{children}</ThemeProvider>
-        </TooltipProvider>
+        <ClientProviders>{children}</ClientProviders>
       </body>
     </html>
   )
