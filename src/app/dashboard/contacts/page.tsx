@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { PencilIcon, Trash2Icon } from "lucide-react"
+import { EllipsisVerticalIcon, PencilIcon, Trash2Icon } from "lucide-react"
 
 import { trpc } from "@/lib/trpc/client"
 import { Button } from "@/components/ui/button"
@@ -16,6 +16,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Field,
   FieldError,
@@ -279,27 +285,31 @@ export default function ContactsPage() {
                     {new Date(c.createdAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => openEdit(c)}
-                      >
-                        <PencilIcon />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() =>
-                          setDeleteTarget({
-                            id: c.id,
-                            name: `${c.firstName} ${c.lastName}`,
-                          })
-                        }
-                      >
-                        <Trash2Icon />
-                      </Button>
-                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon-sm">
+                          <EllipsisVerticalIcon />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEdit(c)}>
+                          <PencilIcon className="h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() =>
+                            setDeleteTarget({
+                              id: c.id,
+                              name: `${c.firstName} ${c.lastName}`,
+                            })
+                          }
+                        >
+                          <Trash2Icon className="h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}

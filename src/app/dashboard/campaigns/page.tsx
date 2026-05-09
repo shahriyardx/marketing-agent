@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -65,9 +65,6 @@ export default function CampaignsPage() {
   const { data: mailgunAccounts = [] } = trpc.mailgun.getAll.useQuery()
   const { data: templates = [] } = trpc.templates.getAll.useQuery()
 
-  useEffect(() => {
-    fixMissing.mutate()
-  }, [])
   const createMutation = trpc.campaigns.create.useMutation({
     onSuccess: () => {
       setCreateOpen(false)
@@ -86,10 +83,6 @@ export default function CampaignsPage() {
     onSuccess: () => utils.campaigns.getAll.invalidate(),
   })
   const deleteMutation = trpc.campaigns.delete.useMutation({
-    onSuccess: () => utils.campaigns.getAll.invalidate(),
-  })
-
-  const fixMissing = trpc.campaigns.fixMissing.useMutation({
     onSuccess: () => utils.campaigns.getAll.invalidate(),
   })
 
@@ -417,14 +410,14 @@ export default function CampaignsPage() {
                       }
                     />
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="icon-sm"
                       onClick={() => openEdit(c)}
                     >
                       <PencilIcon />
                     </Button>
                     <Button
-                      variant="ghost"
+                      variant="destructive"
                       size="icon-sm"
                       onClick={() =>
                         setDeleteTarget({ id: c.id, name: c.name })

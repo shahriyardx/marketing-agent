@@ -59,7 +59,13 @@ export const templatesRouter = router({
 
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
-    .mutation(({ ctx, input }) => {
+    .mutation(async ({ ctx, input }) => {
+      // First set null on linked campaigns and disable them
+      await ctx.prisma.campaign.updateMany({
+        where: { templateId: input.id },
+        data: { templateId: null, enabled: false },
+      })
+
       return ctx.prisma.emailTemplate.delete({
         where: { id: input.id },
       })

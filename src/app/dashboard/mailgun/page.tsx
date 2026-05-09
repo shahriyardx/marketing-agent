@@ -166,14 +166,14 @@ export default function MailgunPage() {
                   }
                 />
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="icon-sm"
                   onClick={() => openEdit(account)}
                 >
                   <PencilIcon />
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="destructive"
                   size="icon-sm"
                   onClick={() =>
                     setDeleteTarget({ id: account.id, name: account.name })

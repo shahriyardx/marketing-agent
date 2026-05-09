@@ -117,7 +117,7 @@ export default function TemplatesPage() {
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="icon-sm"
                         onClick={() =>
                           router.push(`/dashboard/templates/${t.id}`)
@@ -126,7 +126,7 @@ export default function TemplatesPage() {
                         <PencilIcon />
                       </Button>
                       <Button
-                        variant="ghost"
+                        variant="destructive"
                         size="icon-sm"
                         onClick={() =>
                           setDeleteTarget({ id: t.id, name: t.name })

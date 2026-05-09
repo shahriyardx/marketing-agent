@@ -95,21 +95,6 @@ export const campaignsRouter = router({
       })
     }),
 
-  fixMissing: protectedProcedure.mutation(async ({ ctx }) => {
-    await ctx.prisma.campaign.updateMany({
-      where: {
-        OR: [
-          { templateId: null },
-          { mailgunAccountId: null },
-          {
-            mailgunAccount: { enabled: false },
-          },
-        ],
-      },
-      data: { enabled: false },
-    })
-  }),
-
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(({ ctx, input }) => {

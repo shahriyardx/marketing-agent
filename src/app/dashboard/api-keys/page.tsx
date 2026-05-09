@@ -242,7 +242,7 @@ export default function ApiKeysPage() {
                   </TableCell>
                   <TableCell>
                     <Button
-                      variant="ghost"
+                      variant="destructive"
                       size="xs"
                       onClick={() =>
                         setDeleteTarget({ id: key.id, name: key.name })

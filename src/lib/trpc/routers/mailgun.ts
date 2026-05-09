@@ -44,11 +44,21 @@ export const mailgunRouter = router({
         enabled: z.boolean(),
       }),
     )
-    .mutation(({ ctx, input }) => {
-      return ctx.prisma.mailgunAccount.update({
+    .mutation(async ({ ctx, input }) => {
+      const result = await ctx.prisma.mailgunAccount.update({
         where: { id: input.id },
         data: { enabled: input.enabled },
       })
+
+      // When a mailgun account is disabled, auto-disable all linked campaigns
+      if (!input.enabled) {
+        await ctx.prisma.campaign.updateMany({
+          where: { mailgunAccountId: input.id },
+          data: { enabled: false },
+        })
+      }
+
+      return result
     }),
 
   update: protectedProcedure
@@ -73,7 +83,13 @@ export const mailgunRouter = router({
 
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
-    .mutation(({ ctx, input }) => {
+    .mutation(async ({ ctx, input }) => {
+      // First set null on linked campaigns and disable them
+      await ctx.prisma.campaign.updateMany({
+        where: { mailgunAccountId: input.id },
+        data: { mailgunAccountId: null, enabled: false },
+      })
+
       return ctx.prisma.mailgunAccount.delete({
         where: { id: input.id },
       })
