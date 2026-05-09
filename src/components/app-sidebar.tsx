@@ -4,6 +4,7 @@ import { BarChart3 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
+import { ThemeSwitcher } from "@/components/theme-switcher"
 import {
   Sidebar,
   SidebarContent,
@@ -16,7 +17,7 @@ import {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
-    <Sidebar variant="inset" {...props}>
+    <Sidebar {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -38,6 +39,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain />
       </SidebarContent>
       <SidebarFooter>
+        <ThemeSwitcher />
         <NavUser />
       </SidebarFooter>
     </Sidebar>

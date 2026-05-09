@@ -1,12 +1,22 @@
 import { z } from "zod"
 import { protectedProcedure, router } from "../init"
 
+function maskKey(key: string) {
+  if (key.length <= 4) return "****"
+  const visible = key.slice(-4)
+  return `${"*".repeat(key.length - 4)}${visible}`
+}
+
 export const mailgunRouter = router({
-  getAll: protectedProcedure.query(({ ctx }) => {
-    return ctx.prisma.mailgunAccount.findMany({
-      where: { userId: ctx.session.user.id },
+  getAll: protectedProcedure.query(async ({ ctx }) => {
+    const accounts = await ctx.prisma.mailgunAccount.findMany({
       orderBy: { createdAt: "desc" },
     })
+
+    return accounts.map((a) => ({
+      ...a,
+      apiKey: maskKey(a.apiKey),
+    }))
   }),
 
   create: protectedProcedure
@@ -20,7 +30,6 @@ export const mailgunRouter = router({
     .mutation(({ ctx, input }) => {
       return ctx.prisma.mailgunAccount.create({
         data: {
-          userId: ctx.session.user.id,
           name: input.name,
           apiKey: input.apiKey,
           domain: input.domain,
@@ -35,33 +44,37 @@ export const mailgunRouter = router({
         enabled: z.boolean(),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
-      const account = await ctx.prisma.mailgunAccount.findUnique({
-        where: { id: input.id },
-      })
-
-      if (!account || account.userId !== ctx.session.user.id) {
-        throw new Error("Not found")
-      }
-
+    .mutation(({ ctx, input }) => {
       return ctx.prisma.mailgunAccount.update({
         where: { id: input.id },
         data: { enabled: input.enabled },
       })
     }),
 
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string().min(1),
+        apiKey: z.string().optional(),
+        domain: z.string().min(1),
+      }),
+    )
+    .mutation(({ ctx, input }) => {
+      return ctx.prisma.mailgunAccount.update({
+        where: { id: input.id },
+        data: {
+          name: input.name,
+          domain: input.domain,
+          ...(input.apiKey ? { apiKey: input.apiKey } : {}),
+        },
+      })
+    }),
+
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const account = await ctx.prisma.mailgunAccount.findUnique({
-        where: { id: input.id },
-      })
-
-      if (!account || account.userId !== ctx.session.user.id) {
-        throw new Error("Not found")
-      }
-
-      await ctx.prisma.mailgunAccount.delete({
+    .mutation(({ ctx, input }) => {
+      return ctx.prisma.mailgunAccount.delete({
         where: { id: input.id },
       })
     }),

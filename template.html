@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to Marketing Agent</title>
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, Helvetica, sans-serif">
+    <table
+      role="presentation"
+      width="100%"
+      cellpadding="0"
+      cellspacing="0"
+      style="background-color: #f4f4f4; padding: 40px 0"
+    >
+      <tr>
+        <td align="center">
+          <table
+            role="presentation"
+            width="600"
+            cellpadding="0"
+            cellspacing="0"
+            style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05)"
+          >
+            <!-- Header -->
+            <tr>
+              <td style="background-color: #1a1a2e; padding: 32px 40px; text-align: center">
+                <h1 style="color: #ffffff; font-size: 24px; margin: 0; font-weight: 700">
+                  Welcome, {{name}}!
+                </h1>
+                <p style="color: #a0aec0; font-size: 14px; margin: 8px 0 0">
+                  Your account has been created successfully.
+                </p>
+              </td>
+            </tr>
+
+            <!-- Body -->
+            <tr>
+              <td style="padding: 40px">
+                <p style="color: #2d3748; font-size: 16px; line-height: 1.6; margin: 0 0 16px">
+                  Hi {{name}},
+                </p>
+                <p style="color: #2d3748; font-size: 16px; line-height: 1.6; margin: 0 0 16px">
+                  Thank you for joining <strong>Marketing Agent</strong>. We're excited to help you
+                  create and manage powerful marketing campaigns.
+                </p>
+
+                <!-- Button -->
+                <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 32px 0">
+                  <tr>
+                    <td style="background-color: #2563eb; border-radius: 6px; text-align: center">
+                      <a
+                        href="{{dashboard_url}}"
+                        style="
+                          display: inline-block;
+                          padding: 14px 36px;
+                          color: #ffffff;
+                          font-size: 16px;
+                          font-weight: 600;
+                          text-decoration: none;
+                          border-radius: 6px;
+                        "
+                      >
+                        Go to Dashboard
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Divider -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 32px 0">
+                  <tr>
+                    <td style="border-top: 1px solid #e2e8f0"></td>
+                  </tr>
+                </table>
+
+                <!-- Features -->
+                <h2 style="color: #1a1a2e; font-size: 18px; margin: 0 0 16px">What you can do</h2>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="padding: 12px 0">
+                      <table role="presentation" cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td
+                            style="background-color: #ebf4ff; border-radius: 8px; width: 40px; height: 40px; text-align: center"
+                          >
+                            <span style="font-size: 20px">📧</span>
+                          </td>
+                          <td style="padding-left: 12px">
+                            <p style="color: #2d3748; font-size: 14px; font-weight: 600; margin: 0">
+                              Email Campaigns
+                            </p>
+                            <p style="color: #718096; font-size: 13px; margin: 4px 0 0">
+                              Create and send personalized email campaigns at scale.
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px 0">
+                      <table role="presentation" cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td
+                            style="background-color: #f0fff4; border-radius: 8px; width: 40px; height: 40px; text-align: center"
+                          >
+                            <span style="font-size: 20px">📊</span>
+                          </td>
+                          <td style="padding-left: 12px">
+                            <p style="color: #2d3748; font-size: 14px; font-weight: 600; margin: 0">
+                              Analytics
+                            </p>
+                            <p style="color: #718096; font-size: 13px; margin: 4px 0 0">
+                              Track opens, clicks, and conversions in real-time.
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px 0">
+                      <table role="presentation" cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td
+                            style="background-color: #faf5ff; border-radius: 8px; width: 40px; height: 40px; text-align: center"
+                          >
+                            <span style="font-size: 20px">🤖</span>
+                          </td>
+                          <td style="padding-left: 12px">
+                            <p style="color: #2d3748; font-size: 14px; font-weight: 600; margin: 0">
+                              AI Content
+                            </p>
+                            <p style="color: #718096; font-size: 13px; margin: 4px 0 0">
+                              Generate marketing copy with our AI-powered tools.
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Divider -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 32px 0">
+                  <tr>
+                    <td style="border-top: 1px solid #e2e8f0"></td>
+                  </tr>
+                </table>
+
+                <!-- Unordered list -->
+                <h3 style="color: #1a1a2e; font-size: 16px; margin: 0 0 12px">Getting started</h3>
+                <ul style="color: #4a5568; font-size: 14px; line-height: 1.8; margin: 0; padding: 0 0 0 20px">
+                  <li>Complete your profile settings</li>
+                  <li>Connect your Mailgun account</li>
+                  <li>Create your first email template</li>
+                  <li>Launch a test campaign</li>
+                </ul>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td
+                style="background-color: #f7fafc; padding: 24px 40px; text-align: center; border-top: 1px solid #e2e8f0"
+              >
+                <p style="color: #a0aec0; font-size: 12px; margin: 0 0 8px">
+                  Marketing Agent &mdash; AI-powered marketing automation
+                </p>
+                <p style="color: #a0aec0; font-size: 12px; margin: 0 0 8px">
+                  You received this email because you signed up at
+                  <a href="{{site_url}}" style="color: #4299e1; text-decoration: none">
+                    marketingagent.com
+                  </a>
+                </p>
+                <p style="color: #a0aec0; font-size: 12px; margin: 0">
+                  <a href="{{unsubscribe_url}}" style="color: #a0aec0; text-decoration: underline">
+                    Unsubscribe
+                  </a>
+                  &nbsp;&middot;&nbsp;
+                  <a href="{{preferences_url}}" style="color: #a0aec0; text-decoration: underline">
+                    Email Preferences
+                  </a>
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { PlusIcon, Trash2Icon } from "lucide-react"
+import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
 
 import { trpc } from "@/lib/trpc/client"
 import { cn } from "@/lib/utils"
@@ -28,29 +28,28 @@ import {
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 
-const schema = z.object({
+const formSchema = z.object({
   name: z.string().min(1, "Account name is required"),
-  apiKey: z
-    .string()
-    .min(1, "API key is required")
-    .refine((v) => v.startsWith("key-") || v.length >= 20, {
-      message: "Enter a valid Mailgun API key",
-    }),
+  apiKey: z.string(),
   domain: z
     .string()
     .min(1, "Domain is required")
     .regex(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, "Enter a valid domain"),
 })
 
-type FormValues = z.infer<typeof schema>
+type FormValues = z.infer<typeof formSchema>
 
-function maskKey(key: string) {
-  if (key.length <= 10) return `${key.slice(0, 4)}****`
-  return `${key.slice(0, 6)}…${key.slice(-4)}`
+type Account = {
+  id: string
+  name: string
+  apiKey: string
+  domain: string
+  enabled: boolean
 }
 
 export default function MailgunPage() {
-  const [open, setOpen] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<Account | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string
     name: string
@@ -60,7 +59,14 @@ export default function MailgunPage() {
   const { data: accounts = [] } = trpc.mailgun.getAll.useQuery()
   const createMutation = trpc.mailgun.create.useMutation({
     onSuccess: () => {
-      setOpen(false)
+      setCreateOpen(false)
+      form.reset()
+      utils.mailgun.getAll.invalidate()
+    },
+  })
+  const updateMutation = trpc.mailgun.update.useMutation({
+    onSuccess: () => {
+      setEditTarget(null)
       form.reset()
       utils.mailgun.getAll.invalidate()
     },
@@ -73,12 +79,55 @@ export default function MailgunPage() {
   })
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(formSchema),
     defaultValues: { name: "", apiKey: "", domain: "" },
   })
 
-  function onSubmit(values: FormValues) {
-    createMutation.mutate(values)
+  function validateApiKey(isEdit: boolean) {
+    const key = form.getValues("apiKey").trim()
+
+    if (!key) {
+      if (!isEdit) {
+        form.setError("apiKey", { message: "API key is required" })
+        return false
+      }
+      form.clearErrors("apiKey")
+      return true
+    }
+
+    if (!key.startsWith("key-") && key.length < 20) {
+      form.setError("apiKey", { message: "Enter a valid Mailgun API key" })
+      return false
+    }
+
+    form.clearErrors("apiKey")
+    return true
+  }
+
+  function onCreate(values: FormValues) {
+    if (!validateApiKey(false)) return
+    createMutation.mutate({ ...values, apiKey: values.apiKey.trim() })
+  }
+
+  function onEdit(values: FormValues) {
+    if (!editTarget) return
+    if (!validateApiKey(true)) return
+    updateMutation.mutate({
+      id: editTarget.id,
+      name: values.name,
+      domain: values.domain,
+      apiKey: values.apiKey.trim() || undefined,
+    })
+  }
+
+  function openEdit(account: Account) {
+    setEditTarget(account)
+    form.reset({ name: account.name, apiKey: "", domain: account.domain })
+  }
+
+  function openCreate() {
+    setCreateOpen(true)
+    form.reset({ name: "", apiKey: "", domain: "" })
   }
 
   return (
@@ -109,13 +158,20 @@ export default function MailgunPage() {
               >
                 {account.name}
               </CardTitle>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <Switch
                   checked={account.enabled}
                   onCheckedChange={(checked) =>
                     toggleMutation.mutate({ id: account.id, enabled: checked })
                   }
                 />
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => openEdit(account)}
+                >
+                  <PencilIcon />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -129,12 +185,96 @@ export default function MailgunPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-1 text-xs text-muted-foreground">
-                <p className="truncate font-mono">{maskKey(account.apiKey)}</p>
+                <p className="truncate font-mono">{account.apiKey}</p>
                 <p>{account.domain}</p>
               </div>
             </CardContent>
           </Card>
         ))}
+
+        <Dialog
+          open={!!editTarget}
+          onOpenChange={(v) => {
+            if (!v) setEditTarget(null)
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Mailgun Account</DialogTitle>
+              <DialogDescription>
+                Leave the API key empty to keep the current one.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={form.handleSubmit(onEdit)} className="space-y-4">
+              <FieldGroup>
+                <Controller
+                  name="name"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="edit-name">Account Name</FieldLabel>
+                      <Input
+                        {...field}
+                        id="edit-name"
+                        aria-invalid={fieldState.invalid}
+                      />
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
+                <Controller
+                  name="apiKey"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="edit-key">API Key</FieldLabel>
+                      <Input
+                        {...field}
+                        id="edit-key"
+                        placeholder="Leave empty to keep current"
+                        aria-invalid={fieldState.invalid}
+                      />
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
+                <Controller
+                  name="domain"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="edit-domain">Domain</FieldLabel>
+                      <Input
+                        {...field}
+                        id="edit-domain"
+                        aria-invalid={fieldState.invalid}
+                      />
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
+              </FieldGroup>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditTarget(null)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={updateMutation.isPending}>
+                  {updateMutation.isPending ? "Saving…" : "Save Changes"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         <Dialog
           open={!!deleteTarget}
@@ -172,9 +312,18 @@ export default function MailgunPage() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+          open={createOpen}
+          onOpenChange={(v) => {
+            setCreateOpen(v)
+            if (!v) form.reset()
+          }}
+        >
           <DialogTrigger asChild>
-            <Card className="flex cursor-pointer items-center justify-center border-2 border-dashed border-muted-foreground/25 bg-muted/30 p-8 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-muted/50 hover:text-primary dark:bg-muted/10 dark:hover:bg-muted/20">
+            <Card
+              className="flex cursor-pointer items-center justify-center border-2 border-dashed border-muted-foreground/25 bg-muted/30 p-8 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-muted/50 hover:text-primary dark:bg-muted/10 dark:hover:bg-muted/20"
+              onClick={openCreate}
+            >
               <div className="flex flex-col items-center gap-2">
                 <PlusIcon className="size-5" />
                 <span className="text-xs font-medium">Add Mailgun Account</span>
@@ -188,7 +337,7 @@ export default function MailgunPage() {
                 Enter your Mailgun API credentials to enable campaign delivery.
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onCreate)} className="space-y-4">
               <FieldGroup>
                 <Controller
                   name="name"
