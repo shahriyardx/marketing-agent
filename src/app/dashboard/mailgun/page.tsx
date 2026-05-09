@@ -54,6 +54,10 @@ export default function MailgunPage() {
     id: string
     name: string
   } | null>(null)
+  const [disableTarget, setDisableTarget] = useState<{
+    id: string
+    name: string
+  } | null>(null)
 
   const utils = trpc.useUtils()
   const { data: accounts = [] } = trpc.mailgun.getAll.useQuery()
@@ -161,9 +165,19 @@ export default function MailgunPage() {
               <div className="flex items-center gap-1">
                 <Switch
                   checked={account.enabled}
-                  onCheckedChange={(checked) =>
-                    toggleMutation.mutate({ id: account.id, enabled: checked })
-                  }
+                  onCheckedChange={(checked) => {
+                    if (!checked) {
+                      setDisableTarget({
+                        id: account.id,
+                        name: account.name,
+                      })
+                    } else {
+                      toggleMutation.mutate({
+                        id: account.id,
+                        enabled: true,
+                      })
+                    }
+                  }}
                 />
                 <Button
                   variant="outline"
@@ -191,6 +205,44 @@ export default function MailgunPage() {
             </CardContent>
           </Card>
         ))}
+
+        <Dialog
+          open={!!disableTarget}
+          onOpenChange={(v) => {
+            if (!v) setDisableTarget(null)
+          }}
+        >
+          <DialogContent showCloseButton={false}>
+            <DialogHeader>
+              <DialogTitle>Disable Mailgun Account</DialogTitle>
+              <DialogDescription>
+                Disabling{" "}
+                <span className="font-medium text-foreground">
+                  {disableTarget?.name}
+                </span>{" "}
+                will also disable all campaigns linked to it. Are you sure?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDisableTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (!disableTarget) return
+                  toggleMutation.mutate({
+                    id: disableTarget.id,
+                    enabled: false,
+                  })
+                  setDisableTarget(null)
+                }}
+              >
+                Disable
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog
           open={!!editTarget}
@@ -290,7 +342,8 @@ export default function MailgunPage() {
                 <span className="font-medium text-foreground">
                   {deleteTarget?.name}
                 </span>
-                ? This action cannot be undone.
+                ? All campaigns linked to this account will be disabled. This
+                action cannot be undone.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>

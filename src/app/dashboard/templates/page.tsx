@@ -67,7 +67,8 @@ export default function TemplatesPage() {
               <span className="font-medium text-foreground">
                 {deleteTarget?.name}
               </span>
-              ? This action cannot be undone.
+              ? All campaigns using this template will be disabled. This action
+              cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

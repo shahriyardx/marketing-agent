@@ -92,6 +92,10 @@ export const campaignsRouter = router({
       return ctx.prisma.campaign.update({
         where: { id: input.id },
         data: { enabled: input.enabled },
+        include: {
+          mailgunAccount: { select: { id: true, name: true, enabled: true } },
+          template: { select: { id: true, name: true } },
+        },
       })
     }),
 
