@@ -1,0 +1,194 @@
+"use client"
+
+import { useState } from "react"
+import { Controller, useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import { PlusIcon, Trash2Icon } from "lucide-react"
+
+import { trpc } from "@/lib/trpc/client"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
+
+const schema = z.object({
+  name: z.string().min(1, "Name is required"),
+  apiKey: z.string().min(1, "API key is required"),
+  domain: z.string().min(1, "Domain is required"),
+})
+
+type FormValues = z.infer<typeof schema>
+
+export default function MailgunPage() {
+  const [open, setOpen] = useState(false)
+
+  const utils = trpc.useUtils()
+  const { data: accounts = [] } = trpc.mailgun.getAll.useQuery()
+  const createMutation = trpc.mailgun.create.useMutation({
+    onSuccess: () => {
+      setOpen(false)
+      form.reset()
+      utils.mailgun.getAll.invalidate()
+    },
+  })
+  const toggleMutation = trpc.mailgun.toggle.useMutation({
+    onSuccess: () => utils.mailgun.getAll.invalidate(),
+  })
+  const deleteMutation = trpc.mailgun.delete.useMutation({
+    onSuccess: () => utils.mailgun.getAll.invalidate(),
+  })
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { name: "", apiKey: "", domain: "" },
+  })
+
+  function onSubmit(values: FormValues) {
+    createMutation.mutate(values)
+  }
+
+  return (
+    <>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">
+            Mailgun Accounts
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Manage your Mailgun API keys for campaign delivery.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {accounts.map((account) => (
+          <Card key={account.id}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xs font-medium">
+                {account.name}
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={account.enabled}
+                  onCheckedChange={(checked) =>
+                    toggleMutation.mutate({ id: account.id, enabled: checked })
+                  }
+                />
+                <button
+                  onClick={() => deleteMutation.mutate({ id: account.id })}
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2Icon className="size-3.5" />
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p className="truncate font-mono">{account.apiKey}</p>
+                <p>{account.domain}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Card className="flex cursor-pointer items-center justify-center border-dashed p-8 text-muted-foreground transition-colors hover:border-primary hover:text-primary">
+              <div className="flex flex-col items-center gap-2">
+                <PlusIcon className="size-5" />
+                <span className="text-xs font-medium">Add Mailgun Account</span>
+              </div>
+            </Card>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Mailgun Account</DialogTitle>
+              <DialogDescription>
+                Enter your Mailgun API credentials to enable campaign delivery.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FieldGroup>
+                <Controller
+                  name="name"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="mg-name">Account Name</FieldLabel>
+                      <Input
+                        {...field}
+                        id="mg-name"
+                        placeholder="Production"
+                        aria-invalid={fieldState.invalid}
+                      />
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
+                <Controller
+                  name="apiKey"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="mg-key">API Key</FieldLabel>
+                      <Input
+                        {...field}
+                        id="mg-key"
+                        placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxx"
+                        aria-invalid={fieldState.invalid}
+                      />
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
+                <Controller
+                  name="domain"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="mg-domain">Domain</FieldLabel>
+                      <Input
+                        {...field}
+                        id="mg-domain"
+                        placeholder="mg.example.com"
+                        aria-invalid={fieldState.invalid}
+                      />
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
+              </FieldGroup>
+              <DialogFooter>
+                <Button type="submit" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? "Adding…" : "Add Account"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </>
+  )
+}

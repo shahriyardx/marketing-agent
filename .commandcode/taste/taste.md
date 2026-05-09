@@ -13,3 +13,10 @@
 # Env
 - For Next.js env management, use @t3-oss/env-nextjs instead of dotenv. Confidence: 0.65
 
+# API
+- Use tRPC for API routes instead of plain Next.js route handlers. Confidence: 0.65
+
+# Architecture
+- Components should fetch their own data via authClient/client hooks instead of receiving data through props. Confidence: 0.70
+- Navigation/menu components should have items hardcoded inline as direct JSX rather than using data arrays with .map() looping. Confidence: 0.70
+
