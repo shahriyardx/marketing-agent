@@ -29,7 +29,6 @@ yarn-error.log*
 pnpm-debug.log*
 
 # env files
-.env
 .env*.local
 
 # typescript
@@ -37,3 +36,4 @@ pnpm-debug.log*
 next-env.d.ts
 
 /generated/prisma
+config.bat
