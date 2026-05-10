@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card"
 import { LoginForm } from "@/components/login-form"
 import { RegisterForm } from "@/components/register-form"
+import { APP_NAME } from "@/lib/constants"
 import { Button } from "@/components/ui/button"
 import { trpc } from "@/lib/trpc/client"
 
@@ -60,7 +61,7 @@ export default function Page() {
       <div className="relative hidden flex-col justify-between bg-muted/40 p-10 lg:flex">
         <div>
           <h1 className="font-heading text-2xl font-semibold tracking-tight">
-            Marketing Agent
+            {APP_NAME}
           </h1>
           <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
             Supercharge your marketing with AI. Create, optimize, and analyze

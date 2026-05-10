@@ -12,6 +12,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+}
 
 export default async function DashboardPage() {
   const session = await auth.api.getSession({

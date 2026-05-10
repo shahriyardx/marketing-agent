@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
 
+import { APP_NAME } from "@/lib/constants"
 import { trpc } from "@/lib/trpc/client"
 import { Button } from "@/components/ui/button"
 import {
@@ -24,6 +25,9 @@ import {
 } from "@/components/ui/table"
 
 export default function TemplatesPage() {
+  useEffect(() => {
+    document.title = `Templates — ${APP_NAME}`
+  }, [])
   const router = useRouter()
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string
