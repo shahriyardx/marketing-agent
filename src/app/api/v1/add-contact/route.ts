@@ -14,10 +14,6 @@ const schema = z.object({
 
 const RR_KEY = "campaign_rr_index"
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
 export async function POST(request: Request) {
   const { valid, error } = await validateApiRequest(request)
   if (!valid) {
@@ -104,7 +100,6 @@ async function sendCampaignToContact(contact: {
   let idx = rrSetting ? parseInt(rrSetting.value, 10) : 0
   if (Number.isNaN(idx) || idx < 0) idx = 0
 
-  let delay = 1000
   let tried = 0
 
   while (tried < campaigns.length) {
@@ -132,10 +127,16 @@ async function sendCampaignToContact(contact: {
           update: { value: String(idx) },
         })
 
-        await prisma.contact.update({
-          where: { id: contact.id },
-          data: { lastCampaignSentId: campaign.id },
-        })
+        await Promise.all([
+          prisma.contact.update({
+            where: { id: contact.id },
+            data: { lastCampaignSentId: campaign.id },
+          }),
+          prisma.mailgunAccount.update({
+            where: { id: campaign.mailgunAccountId! },
+            data: { sentCount: { increment: 1 } },
+          }),
+        ])
 
         return
       }
@@ -155,16 +156,10 @@ async function sendCampaignToContact(contact: {
           `Campaign "${campaign.name}" send failed (${result.status}): ${result.body}`,
         )
       }
-
-      // Exponential backoff: 1s, 2s, 4s, 8s until max 30s
-      if (tried < campaigns.length) {
-        await sleep(delay)
-        delay = Math.min(delay * 2, 30000)
-      }
+      // Continue to next campaign immediately
+      continue
     } catch (e) {
       console.error(`Campaign "${campaign.name}" send error:`, e)
-      await sleep(delay)
-      delay = Math.min(delay * 2, 30000)
     }
   }
 

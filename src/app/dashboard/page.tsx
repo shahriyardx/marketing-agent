@@ -12,16 +12,37 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { ContactChart } from "./contact-charts"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
   title: "Dashboard",
 }
 
+function groupBy<T>(items: T[], keyFn: (item: T) => string): Map<string, T[]> {
+  const map = new Map<string, T[]>()
+  for (const item of items) {
+    const key = keyFn(item)
+    if (!map.has(key)) map.set(key, [])
+    map.get(key)!.push(item)
+  }
+  return map
+}
+
+function pad<N extends number>(n: N): `${N}` {
+  return n.toString().padStart(2, "0") as unknown as `${N}`
+}
+
 export default async function DashboardPage() {
   const session = await auth.api.getSession({
     headers: await headers(),
   })
+
+  const now = new Date()
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const startOf7Days = new Date(startOfToday.getTime() - 7 * 86400000)
+  const startOf30Days = new Date(startOfToday.getTime() - 30 * 86400000)
+  const startOf12Months = new Date(now.getFullYear() - 1, now.getMonth(), 1)
 
   const [
     campaignCount,
@@ -30,6 +51,10 @@ export default async function DashboardPage() {
     mailgunCount,
     recentContacts,
     recentCampaigns,
+    contactsToday,
+    contacts7Days,
+    contacts30Days,
+    contacts12Months,
   ] = await Promise.all([
     prisma.campaign.count(),
     prisma.contact.count(),
@@ -44,7 +69,74 @@ export default async function DashboardPage() {
         mailgunAccount: { select: { name: true } },
       },
     }),
+    prisma.contact.findMany({
+      where: { createdAt: { gte: startOfToday } },
+      select: { createdAt: true },
+    }),
+    prisma.contact.findMany({
+      where: { createdAt: { gte: startOf7Days } },
+      select: { createdAt: true },
+    }),
+    prisma.contact.findMany({
+      where: { createdAt: { gte: startOf30Days } },
+      select: { createdAt: true },
+    }),
+    prisma.contact.findMany({
+      where: { createdAt: { gte: startOf12Months } },
+      select: { createdAt: true },
+    }),
   ])
+
+  // Group by hour for today
+  const todayGroups = groupBy(contactsToday, (c) => `${pad(c.createdAt.getHours())}:00`)
+  const todayData = Array.from({ length: 24 }, (_, i) => {
+    const key = `${pad(i)}:00`
+    return { name: key, count: todayGroups.get(key)?.length ?? 0 }
+  })
+
+  // Group by day for last 7 days
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  const day7Groups = groupBy(contacts7Days, (c) => {
+    const d = c.createdAt
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  })
+  const day7Data = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(startOfToday.getTime() - (6 - i) * 86400000)
+    const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+    return {
+      name: `${dayNames[d.getDay()]}`,
+      label: key,
+      count: day7Groups.get(key)?.length ?? 0,
+    }
+  })
+
+  // Group by day for last 30 days
+  const day30Groups = groupBy(contacts30Days, (c) => {
+    const d = c.createdAt
+    return `${d.getMonth() + 1}/${d.getDate()}`
+  })
+  const day30Data = Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(startOfToday.getTime() - (29 - i) * 86400000)
+    const key = `${d.getMonth() + 1}/${d.getDate()}`
+    return { name: key, count: day30Groups.get(key)?.length ?? 0 }
+  })
+  // Show every 5th label to avoid crowding
+  const day30DataFiltered = day30Data.map((d, i) => ({
+    ...d,
+    name: i % 5 === 0 || i === day30Data.length - 1 ? d.name : "",
+  }))
+
+  // Group by month for last 12 months
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  const monthGroups = groupBy(contacts12Months, (c) => {
+    const d = c.createdAt
+    return `${d.getFullYear()}-${d.getMonth()}`
+  })
+  const monthData = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear() - 1, now.getMonth() + i, 1)
+    const key = `${d.getFullYear()}-${d.getMonth()}`
+    return { name: monthNames[d.getMonth()], count: monthGroups.get(key)?.length ?? 0 }
+  })
 
   return (
     <>
@@ -111,6 +203,15 @@ export default async function DashboardPage() {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-1">
+        <ContactChart
+          todayData={todayData}
+          day7Data={day7Data}
+          day30Data={day30DataFiltered}
+          monthData={monthData}
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

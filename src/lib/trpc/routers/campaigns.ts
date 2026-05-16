@@ -167,10 +167,16 @@ export const campaignsRouter = router({
         })
       }
 
-      await ctx.prisma.contact.update({
-        where: { id: contact.id },
-        data: { lastCampaignSentId: campaign.id },
-      })
+      await Promise.all([
+        ctx.prisma.contact.update({
+          where: { id: contact.id },
+          data: { lastCampaignSentId: campaign.id },
+        }),
+        ctx.prisma.mailgunAccount.update({
+          where: { id: campaign.mailgunAccountId! },
+          data: { sentCount: { increment: 1 } },
+        }),
+      ])
 
       return { sent: true }
     }),

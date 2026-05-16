@@ -46,6 +46,7 @@ type Account = {
   apiKey: string
   domain: string
   fromEmail: string
+  sentCount: number
   enabled: boolean
 }
 
@@ -226,6 +227,7 @@ export default function MailgunPage() {
               <div className="space-y-1 text-xs text-muted-foreground">
                 <p className="truncate font-mono">{account.apiKey}</p>
                 <p>{account.domain}</p>
+                <p>{account.sentCount} emails sent</p>
               </div>
             </CardContent>
           </Card>
