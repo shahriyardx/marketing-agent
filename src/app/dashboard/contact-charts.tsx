@@ -1,14 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ResponsiveContainer,
-} from "recharts"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -87,7 +80,10 @@ export function ContactChart({
             No contacts yet.
           </p>
         ) : (
-          <ChartContainer config={chartConfig} className="aspect-auto h-[300px] w-full">
+          <ChartContainer
+            config={chartConfig}
+            className="aspect-auto h-75 w-full"
+          >
             <BarChart data={data} barCategoryGap={2}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis

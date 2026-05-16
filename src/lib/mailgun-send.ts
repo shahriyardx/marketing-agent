@@ -84,7 +84,9 @@ export async function sendMailgunEmail(input: SendInput): Promise<SendResult> {
       sent: false,
       status: res.status,
       body: errBody,
-      retryAfter: retryAfter ? parseInt(retryAfter, 10) || undefined : undefined,
+      retryAfter: retryAfter
+        ? parseInt(retryAfter, 10) || undefined
+        : undefined,
     }
   }
 

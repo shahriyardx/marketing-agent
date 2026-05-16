@@ -110,7 +110,9 @@ export const mailgunRouter = router({
           name: input.name,
           domain: input.domain,
           ...(input.apiKey ? { apiKey: input.apiKey } : {}),
-          ...(input.fromEmail !== undefined ? { fromEmail: input.fromEmail } : {}),
+          ...(input.fromEmail !== undefined
+            ? { fromEmail: input.fromEmail }
+            : {}),
         },
       })
     }),

@@ -23,8 +23,12 @@ function groupBy<T>(items: T[], keyFn: (item: T) => string): Map<string, T[]> {
   const map = new Map<string, T[]>()
   for (const item of items) {
     const key = keyFn(item)
-    if (!map.has(key)) map.set(key, [])
-    map.get(key)!.push(item)
+    const group = map.get(key)
+    if (group) {
+      group.push(item)
+    } else {
+      map.set(key, [item])
+    }
   }
   return map
 }
@@ -39,7 +43,11 @@ export default async function DashboardPage() {
   })
 
   const now = new Date()
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  )
   const startOf7Days = new Date(startOfToday.getTime() - 7 * 86400000)
   const startOf30Days = new Date(startOfToday.getTime() - 30 * 86400000)
   const startOf12Months = new Date(now.getFullYear() - 1, now.getMonth(), 1)
@@ -88,7 +96,10 @@ export default async function DashboardPage() {
   ])
 
   // Group by hour for today
-  const todayGroups = groupBy(contactsToday, (c) => `${pad(c.createdAt.getHours())}:00`)
+  const todayGroups = groupBy(
+    contactsToday,
+    (c) => `${pad(c.createdAt.getHours())}:00`,
+  )
   const todayData = Array.from({ length: 24 }, (_, i) => {
     const key = `${pad(i)}:00`
     return { name: key, count: todayGroups.get(key)?.length ?? 0 }
@@ -127,7 +138,20 @@ export default async function DashboardPage() {
   }))
 
   // Group by month for last 12 months
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ]
   const monthGroups = groupBy(contacts12Months, (c) => {
     const d = c.createdAt
     return `${d.getFullYear()}-${d.getMonth()}`
@@ -135,7 +159,10 @@ export default async function DashboardPage() {
   const monthData = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(now.getFullYear() - 1, now.getMonth() + i, 1)
     const key = `${d.getFullYear()}-${d.getMonth()}`
-    return { name: monthNames[d.getMonth()], count: monthGroups.get(key)?.length ?? 0 }
+    return {
+      name: monthNames[d.getMonth()],
+      count: monthGroups.get(key)?.length ?? 0,
+    }
   })
 
   return (
@@ -150,68 +177,69 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground">
-              Campaigns
-            </CardTitle>
-            <MegaphoneIcon className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold tracking-tight">
-              {campaignCount}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground">
-              Contacts
-            </CardTitle>
-            <UsersIcon className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold tracking-tight">
-              {contactCount}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground">
-              Templates
-            </CardTitle>
-            <FileTextIcon className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold tracking-tight">
-              {templateCount}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground">
-              Mailgun Accounts
-            </CardTitle>
-            <MailIcon className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold tracking-tight">
-              {mailgunCount}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-1">
-        <ContactChart
-          todayData={todayData}
-          day7Data={day7Data}
-          day30Data={day30DataFiltered}
-          monthData={monthData}
-        />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <ContactChart
+            todayData={todayData}
+            day7Data={day7Data}
+            day30Data={day30DataFiltered}
+            monthData={monthData}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xs font-medium text-muted-foreground">
+                Campaigns
+              </CardTitle>
+              <MegaphoneIcon className="size-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold tracking-tight">
+                {campaignCount}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xs font-medium text-muted-foreground">
+                Contacts
+              </CardTitle>
+              <UsersIcon className="size-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold tracking-tight">
+                {contactCount}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xs font-medium text-muted-foreground">
+                Templates
+              </CardTitle>
+              <FileTextIcon className="size-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold tracking-tight">
+                {templateCount}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xs font-medium text-muted-foreground">
+                Mailgun Accounts
+              </CardTitle>
+              <MailIcon className="size-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold tracking-tight">
+                {mailgunCount}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

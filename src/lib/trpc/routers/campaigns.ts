@@ -76,21 +76,15 @@ export const campaignsRouter = router({
         })
 
         if (!campaign?.templateId) {
-          throw new Error(
-            "Cannot enable campaign: Template is missing",
-          )
+          throw new Error("Cannot enable campaign: Template is missing")
         }
 
         if (!campaign?.mailgunAccountId) {
-          throw new Error(
-            "Cannot enable campaign: Mailgun account is missing",
-          )
+          throw new Error("Cannot enable campaign: Mailgun account is missing")
         }
 
         if (!campaign.mailgunAccount?.enabled) {
-          throw new Error(
-            "Cannot enable campaign: Mailgun account is disabled",
-          )
+          throw new Error("Cannot enable campaign: Mailgun account is disabled")
         }
       }
 
@@ -125,11 +119,28 @@ export const campaignsRouter = router({
         }),
       ])
 
-      if (!campaign) throw new TRPCError({ code: "NOT_FOUND", message: "Campaign not found" })
-      if (!contact) throw new TRPCError({ code: "NOT_FOUND", message: "Contact not found" })
-      if (!campaign.template) throw new TRPCError({ code: "BAD_REQUEST", message: "Campaign has no template" })
-      if (!campaign.mailgunAccount) throw new TRPCError({ code: "BAD_REQUEST", message: "Campaign has no Mailgun account" })
-      if (!campaign.mailgunAccount.enabled) throw new TRPCError({ code: "BAD_REQUEST", message: "Mailgun account is disabled" })
+      if (!campaign)
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Campaign not found",
+        })
+      if (!contact)
+        throw new TRPCError({ code: "NOT_FOUND", message: "Contact not found" })
+      if (!campaign.template)
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Campaign has no template",
+        })
+      if (!campaign.mailgunAccount)
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Campaign has no Mailgun account",
+        })
+      if (!campaign.mailgunAccount.enabled)
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Mailgun account is disabled",
+        })
 
       if (campaign.rateLimitedUntil && campaign.rateLimitedUntil > new Date()) {
         throw new TRPCError({
@@ -173,7 +184,7 @@ export const campaignsRouter = router({
           data: { lastCampaignSentId: campaign.id },
         }),
         ctx.prisma.mailgunAccount.update({
-          where: { id: campaign.mailgunAccountId! },
+          where: { id: campaign.mailgunAccountId as string },
           data: { sentCount: { increment: 1 } },
         }),
       ])

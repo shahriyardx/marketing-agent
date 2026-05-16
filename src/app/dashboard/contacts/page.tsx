@@ -4,7 +4,12 @@ import { useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { EllipsisVerticalIcon, PencilIcon, Trash2Icon, Upload } from "lucide-react"
+import {
+  EllipsisVerticalIcon,
+  PencilIcon,
+  Trash2Icon,
+  Upload,
+} from "lucide-react"
 
 import { contrastText } from "@/lib/contrast"
 import { trpc } from "@/lib/trpc/client"
@@ -171,7 +176,8 @@ export default function ContactsPage() {
     }
 
     function cellText(v: unknown): string {
-      if (v && typeof v === "object" && "text" in v) return String((v as { text: string }).text)
+      if (v && typeof v === "object" && "text" in v)
+        return String((v as { text: string }).text)
       return String(v ?? "")
     }
 
@@ -185,9 +191,7 @@ export default function ContactsPage() {
     const lastNameIdx = headers.findIndex(
       (h) => h === "last name" || h === "lastname",
     )
-    const nameIdx = headers.findIndex(
-      (h) => h === "name" || h === "full name",
-    )
+    const nameIdx = headers.findIndex((h) => h === "name" || h === "full name")
     const emailIdx = headers.findIndex((h) => h === "email")
     const phoneIdx = headers.findIndex((h) => h === "phone")
 
@@ -201,7 +205,12 @@ export default function ContactsPage() {
       return
     }
 
-    const contacts: { firstName: string; lastName: string; email: string; phone: string }[] = []
+    const contacts: {
+      firstName: string
+      lastName: string
+      email: string
+      phone: string
+    }[] = []
 
     for (let i = 2; i <= rowCount; i++) {
       const vals = ws.getRow(i).values as unknown[]
@@ -242,9 +251,10 @@ export default function ContactsPage() {
     const wb = new Workbook()
     const ws = wb.addWorksheet("Contacts")
 
-    const selected = selectedIds.length > 0
-      ? contacts.filter((c) => selectedIds.includes(c.id))
-      : contacts
+    const selected =
+      selectedIds.length > 0
+        ? contacts.filter((c) => selectedIds.includes(c.id))
+        : contacts
 
     ws.columns = [
       { header: "First Name", key: "firstName", width: 20 },
@@ -526,10 +536,7 @@ export default function ContactsPage() {
             )}
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setImportOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setImportOpen(false)}>
               Cancel
             </Button>
             <Button
@@ -582,9 +589,7 @@ export default function ContactsPage() {
                     {campaigns
                       .filter(
                         (c) =>
-                          c.enabled &&
-                          c.template &&
-                          c.mailgunAccount?.enabled,
+                          c.enabled && c.template && c.mailgunAccount?.enabled,
                       )
                       .map((c) => (
                         <SelectItem key={c.id} value={c.id}>
@@ -607,10 +612,7 @@ export default function ContactsPage() {
             )}
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setSendTarget(null)}
-            >
+            <Button variant="outline" onClick={() => setSendTarget(null)}>
               Close
             </Button>
             <Button

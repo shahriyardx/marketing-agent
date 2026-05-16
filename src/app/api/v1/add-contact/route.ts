@@ -133,7 +133,7 @@ async function sendCampaignToContact(contact: {
             data: { lastCampaignSentId: campaign.id },
           }),
           prisma.mailgunAccount.update({
-            where: { id: campaign.mailgunAccountId! },
+            where: { id: campaign.mailgunAccountId as string },
             data: { sentCount: { increment: 1 } },
           }),
         ])
