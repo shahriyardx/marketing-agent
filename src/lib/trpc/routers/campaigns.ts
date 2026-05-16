@@ -1,4 +1,6 @@
 import { z } from "zod"
+import { TRPCError } from "@trpc/server"
+import { sendMailgunEmail } from "@/lib/mailgun-send"
 import { protectedProcedure, router } from "../init"
 
 export const campaignsRouter = router({
@@ -18,6 +20,7 @@ export const campaignsRouter = router({
         name: z.string().min(1),
         mailgunAccountId: z.string().min(1),
         templateId: z.string().min(1),
+        color: z.string().optional(),
       }),
     )
     .mutation(({ ctx, input }) => {
@@ -37,6 +40,7 @@ export const campaignsRouter = router({
         name: z.string().min(1),
         mailgunAccountId: z.string().min(1),
         templateId: z.string().min(1),
+        color: z.string().optional(),
       }),
     )
     .mutation(({ ctx, input }) => {
@@ -46,6 +50,7 @@ export const campaignsRouter = router({
           name: input.name,
           mailgunAccountId: input.mailgunAccountId,
           templateId: input.templateId,
+          ...(input.color ? { color: input.color } : {}),
         },
         include: {
           mailgunAccount: { select: { id: true, name: true, enabled: true } },
@@ -97,6 +102,77 @@ export const campaignsRouter = router({
           template: { select: { id: true, name: true } },
         },
       })
+    }),
+
+  send: protectedProcedure
+    .input(
+      z.object({
+        campaignId: z.string(),
+        contactId: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [campaign, contact] = await Promise.all([
+        ctx.prisma.campaign.findUnique({
+          where: { id: input.campaignId },
+          include: {
+            mailgunAccount: true,
+            template: true,
+          },
+        }),
+        ctx.prisma.contact.findUnique({
+          where: { id: input.contactId },
+        }),
+      ])
+
+      if (!campaign) throw new TRPCError({ code: "NOT_FOUND", message: "Campaign not found" })
+      if (!contact) throw new TRPCError({ code: "NOT_FOUND", message: "Contact not found" })
+      if (!campaign.template) throw new TRPCError({ code: "BAD_REQUEST", message: "Campaign has no template" })
+      if (!campaign.mailgunAccount) throw new TRPCError({ code: "BAD_REQUEST", message: "Campaign has no Mailgun account" })
+      if (!campaign.mailgunAccount.enabled) throw new TRPCError({ code: "BAD_REQUEST", message: "Mailgun account is disabled" })
+
+      if (campaign.rateLimitedUntil && campaign.rateLimitedUntil > new Date()) {
+        throw new TRPCError({
+          code: "TOO_MANY_REQUESTS",
+          message: `Campaign is rate limited until ${campaign.rateLimitedUntil.toISOString()}. Try again later.`,
+        })
+      }
+
+      const result = await sendMailgunEmail({
+        campaign: {
+          id: campaign.id,
+          name: campaign.name,
+          template: campaign.template,
+          mailgunAccount: campaign.mailgunAccount,
+        },
+        contact,
+      })
+
+      if (!result.sent) {
+        if (result.status === 429) {
+          const retryAfter = result.retryAfter ?? 3600
+          const rateLimitedUntil = new Date(Date.now() + retryAfter * 1000)
+          await ctx.prisma.campaign.update({
+            where: { id: campaign.id },
+            data: { rateLimitedUntil },
+          })
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message: `Campaign rate limited until ${rateLimitedUntil.toISOString()}.`,
+          })
+        }
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Mailgun send failed: ${result.body}`,
+        })
+      }
+
+      await ctx.prisma.contact.update({
+        where: { id: contact.id },
+        data: { lastCampaignSentId: campaign.id },
+      })
+
+      return { sent: true }
     }),
 
   delete: protectedProcedure

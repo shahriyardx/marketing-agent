@@ -34,11 +34,18 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { ColorPicker } from "@/components/color-picker"
+
+const COLOR_PRESETS = [
+  "#5865F2", "#248046", "#da373c", "#f0b232", "#059669",
+  "#0891b2", "#7c3aed", "#db2777", "#64748b",
+]
 
 const schema = z.object({
   name: z.string().min(1, "Name is required"),
   mailgunAccountId: z.string().min(1, "Mailgun account is required"),
   templateId: z.string().min(1, "Template is required"),
+  color: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -46,6 +53,7 @@ type FormValues = z.infer<typeof schema>
 type Campaign = {
   id: string
   name: string
+  color: string
   enabled: boolean
   mailgunAccount: { id: string; name: string; enabled: boolean } | null
   template: { id: string; name: string } | null
@@ -88,7 +96,7 @@ export default function CampaignsPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", mailgunAccountId: "", templateId: "" },
+    defaultValues: { name: "", mailgunAccountId: "", templateId: "", color: "#5865F2" },
   })
 
   function onCreate(values: FormValues) {
@@ -104,6 +112,7 @@ export default function CampaignsPage() {
     setEditTarget(c)
     form.reset({
       name: c.name,
+      color: c.color,
       mailgunAccountId: c.mailgunAccount?.id ?? "",
       templateId: c.template?.id ?? "",
     })
@@ -144,7 +153,7 @@ export default function CampaignsPage() {
               <FieldGroup>
                 <Controller
                   name="name"
-                  control={form.control}
+                  control={form.control as any}
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
                       <FieldLabel htmlFor="c-name">Campaign Name</FieldLabel>
@@ -162,7 +171,7 @@ export default function CampaignsPage() {
                 />
                 <Controller
                   name="templateId"
-                  control={form.control}
+                  control={form.control as any}
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
                       <FieldLabel htmlFor="c-template">Template</FieldLabel>
@@ -189,7 +198,7 @@ export default function CampaignsPage() {
                 />
                 <Controller
                   name="mailgunAccountId"
-                  control={form.control}
+                  control={form.control as any}
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
                       <FieldLabel htmlFor="c-mailgun">
@@ -218,6 +227,7 @@ export default function CampaignsPage() {
                     </Field>
                   )}
                 />
+                <ColorPicker control={form.control as any} name="color" />
               </FieldGroup>
               <DialogFooter>
                 <Button type="submit" disabled={createMutation.isPending}>
@@ -244,7 +254,7 @@ export default function CampaignsPage() {
             <FieldGroup>
               <Controller
                 name="name"
-                control={form.control}
+                control={form.control as any}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel htmlFor="ec-name">Campaign Name</FieldLabel>
@@ -261,7 +271,7 @@ export default function CampaignsPage() {
               />
               <Controller
                 name="templateId"
-                control={form.control}
+                control={form.control as any}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel htmlFor="ec-template">Template</FieldLabel>
@@ -285,7 +295,7 @@ export default function CampaignsPage() {
               />
               <Controller
                 name="mailgunAccountId"
-                control={form.control}
+                control={form.control as any}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel htmlFor="ec-mailgun">
@@ -311,6 +321,7 @@ export default function CampaignsPage() {
                   </Field>
                 )}
               />
+              <ColorPicker control={form.control as any} name="color" />
             </FieldGroup>
             <DialogFooter>
               <Button
@@ -387,6 +398,7 @@ export default function CampaignsPage() {
                   hasIssue &&
                     "border-yellow-600/50 dark:border-yellow-500/50",
                 )}
+                style={{ borderLeft: `3px solid ${c.color}` }}
               >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle

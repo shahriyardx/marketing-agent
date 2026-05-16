@@ -74,9 +74,11 @@ export function TemplateForm({
       <div className="rounded-none border bg-muted/30 px-4 py-3">
         <p className="text-xs font-medium">Template Variables</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Use <code className="rounded-none bg-muted px-1">{`{{name}}`}</code>,{" "}
-          <code className="rounded-none bg-muted px-1">{`{{email}}`}</code>, and
-          any custom variables in your HTML. They will be replaced when sending.
+          Use Handlebars variables like{" "}
+          <code className="rounded-none bg-muted px-1">{`{{name}}`}</code>,{" "}
+          <code className="rounded-none bg-muted px-1">{`{{email}}`}</code>,{" "}
+          <code className="rounded-none bg-muted px-1">{`{{first_name}}`}</code>
+          . Conditionals and helpers also supported.
         </p>
       </div>
 

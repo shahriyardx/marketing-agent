@@ -6,15 +6,31 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // CORS headers for all origins
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type",
+  }
+
+  // Handle preflight
+  if (request.method === "OPTIONS") {
+    return new NextResponse(null, { status: 204, headers })
+  }
+
   const header = request.headers.get("authorization")
   if (!header?.startsWith("Bearer ")) {
     return NextResponse.json(
       { error: "Missing Authorization header. Use: Bearer <api_key>" },
-      { status: 401 },
+      { status: 401, headers },
     )
   }
 
-  return NextResponse.next()
+  const response = NextResponse.next()
+  for (const [key, value] of Object.entries(headers)) {
+    response.headers.set(key, value)
+  }
+  return response
 }
 
 export const config = {

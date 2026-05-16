@@ -35,6 +35,7 @@ const formSchema = z.object({
     .string()
     .min(1, "Domain is required")
     .regex(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, "Enter a valid domain"),
+  fromEmail: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -44,6 +45,7 @@ type Account = {
   name: string
   apiKey: string
   domain: string
+  fromEmail: string
   enabled: boolean
 }
 
@@ -82,9 +84,11 @@ export default function MailgunPage() {
     onSuccess: () => utils.mailgun.getAll.invalidate(),
   })
 
+  const validateMutation = trpc.mailgun.validate.useMutation()
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", apiKey: "", domain: "" },
+    defaultValues: { name: "", apiKey: "", domain: "", fromEmail: "noreply" },
   })
 
   function validateApiKey(isEdit: boolean) {
@@ -108,30 +112,51 @@ export default function MailgunPage() {
     return true
   }
 
-  function onCreate(values: FormValues) {
+  async function onCreate(values: FormValues) {
     if (!validateApiKey(false)) return
+
+    try {
+      await validateMutation.mutateAsync({ apiKey: values.apiKey.trim() })
+    } catch {
+      form.setError("apiKey", { message: "API key rejected by Mailgun" })
+      return
+    }
+
     createMutation.mutate({ ...values, apiKey: values.apiKey.trim() })
   }
 
-  function onEdit(values: FormValues) {
+  async function onEdit(values: FormValues) {
     if (!editTarget) return
     if (!validateApiKey(true)) return
+
+    const trimmedKey = values.apiKey.trim()
+
+    if (trimmedKey) {
+      try {
+        await validateMutation.mutateAsync({ apiKey: trimmedKey })
+      } catch {
+        form.setError("apiKey", { message: "API key rejected by Mailgun" })
+        return
+      }
+    }
+
     updateMutation.mutate({
       id: editTarget.id,
       name: values.name,
       domain: values.domain,
-      apiKey: values.apiKey.trim() || undefined,
+      fromEmail: values.fromEmail,
+      apiKey: trimmedKey || undefined,
     })
   }
 
   function openEdit(account: Account) {
     setEditTarget(account)
-    form.reset({ name: account.name, apiKey: "", domain: account.domain })
+    form.reset({ name: account.name, apiKey: "", domain: account.domain, fromEmail: account.fromEmail })
   }
 
   function openCreate() {
     setCreateOpen(true)
-    form.reset({ name: "", apiKey: "", domain: "" })
+    form.reset({ name: "", apiKey: "", domain: "", fromEmail: "noreply" })
   }
 
   return (
@@ -311,6 +336,26 @@ export default function MailgunPage() {
                     </Field>
                   )}
                 />
+                <Controller
+                  name="fromEmail"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="edit-from">
+                        From Email
+                      </FieldLabel>
+                      <Input
+                        {...field}
+                        id="edit-from"
+                        placeholder="noreply"
+                        aria-invalid={fieldState.invalid}
+                      />
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
               </FieldGroup>
               <DialogFooter>
                 <Button
@@ -320,8 +365,12 @@ export default function MailgunPage() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={updateMutation.isPending}>
-                  {updateMutation.isPending ? "Saving…" : "Save Changes"}
+                <Button type="submit" disabled={updateMutation.isPending || validateMutation.isPending}>
+                  {validateMutation.isPending
+                    ? "Validating…"
+                    : updateMutation.isPending
+                      ? "Saving…"
+                      : "Save Changes"}
                 </Button>
               </DialogFooter>
             </form>
@@ -446,10 +495,34 @@ export default function MailgunPage() {
                     </Field>
                   )}
                 />
+                <Controller
+                  name="fromEmail"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="mg-from">
+                        From Email
+                      </FieldLabel>
+                      <Input
+                        {...field}
+                        id="mg-from"
+                        placeholder="noreply"
+                        aria-invalid={fieldState.invalid}
+                      />
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
               </FieldGroup>
               <DialogFooter>
-                <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? "Adding…" : "Add Account"}
+                <Button type="submit" disabled={createMutation.isPending || validateMutation.isPending}>
+                  {validateMutation.isPending
+                    ? "Validating…"
+                    : createMutation.isPending
+                      ? "Adding…"
+                      : "Add Account"}
                 </Button>
               </DialogFooter>
             </form>

@@ -68,6 +68,7 @@ model MailgunAccount {
   name      String
   apiKey    String
   domain    String
+  fromEmail String     @default("noreply")
   enabled   Boolean    @default(true)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
@@ -122,26 +123,32 @@ model EmailTemplate {
 }
 
 model Contact {
-  id          String   @id @default(cuid())
-  firstName   String
-  lastName    String
-  email       String
-  phone       String?
-  message     String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String    @id @default(cuid())
+  firstName          String
+  lastName           String
+  email              String
+  phone              String?
+  message            String?
+  lastCampaignSentId String?
+  lastCampaignSent   Campaign? @relation("SentCampaigns", fields: [lastCampaignSentId], references: [id], onDelete: SetNull)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
+  @@unique([email])
   @@map("contact")
 }
 
 model Campaign {
   id                String          @id @default(cuid())
   name              String
+  color             String          @default("#5865F2")
   enabled           Boolean         @default(true)
   mailgunAccountId  String?
   mailgunAccount    MailgunAccount? @relation(fields: [mailgunAccountId], references: [id], onDelete: SetNull)
   templateId        String?
   template          EmailTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  sentTo            Contact[]       @relation("SentCampaigns")
+  rateLimitedUntil  DateTime?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 

@@ -5,6 +5,9 @@ export const contactsRouter = router({
   getAll: protectedProcedure.query(({ ctx }) => {
     return ctx.prisma.contact.findMany({
       orderBy: { createdAt: "desc" },
+      include: {
+        lastCampaignSent: { select: { name: true, color: true } },
+      },
     })
   }),
 
@@ -43,6 +46,39 @@ export const contactsRouter = router({
     .mutation(({ ctx, input }) => {
       return ctx.prisma.contact.delete({
         where: { id: input.id },
+      })
+    }),
+
+  deleteMany: protectedProcedure
+    .input(z.object({ ids: z.array(z.string()) }))
+    .mutation(({ ctx, input }) => {
+      return ctx.prisma.contact.deleteMany({
+        where: { id: { in: input.ids } },
+      })
+    }),
+
+  importExcel: protectedProcedure
+    .input(
+      z.object({
+        contacts: z.array(
+          z.object({
+            firstName: z.string().min(1),
+            lastName: z.string().optional().default(""),
+            email: z.string().min(1, "Email is required"),
+            phone: z.string().optional().default(""),
+          }),
+        ),
+      }),
+    )
+    .mutation(({ ctx, input }) => {
+      return ctx.prisma.contact.createMany({
+        data: input.contacts.map((c) => ({
+          firstName: c.firstName,
+          lastName: c.lastName,
+          email: c.email,
+          phone: c.phone || null,
+        })),
+        skipDuplicates: true,
       })
     }),
 })

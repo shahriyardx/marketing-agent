@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { TRPCError } from "@trpc/server"
 import { protectedProcedure, router } from "../init"
 
 function maskKey(key: string) {
@@ -8,6 +9,35 @@ function maskKey(key: string) {
 }
 
 export const mailgunRouter = router({
+  validate: protectedProcedure
+    .input(
+      z.object({
+        apiKey: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const encoded = Buffer.from(`api:${input.apiKey}`).toString("base64")
+      const res = await fetch("https://api.mailgun.net/v3/domains", {
+        headers: { Authorization: `Basic ${encoded}` },
+      })
+
+      if (res.status === 401 || res.status === 403) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Invalid Mailgun API key",
+        })
+      }
+
+      if (!res.ok) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to validate Mailgun API key",
+        })
+      }
+
+      return { valid: true }
+    }),
+
   getAll: protectedProcedure.query(async ({ ctx }) => {
     const accounts = await ctx.prisma.mailgunAccount.findMany({
       orderBy: { createdAt: "desc" },
@@ -25,6 +55,7 @@ export const mailgunRouter = router({
         name: z.string().min(1),
         apiKey: z.string().min(1),
         domain: z.string().min(1),
+        fromEmail: z.string().optional(),
       }),
     )
     .mutation(({ ctx, input }) => {
@@ -33,6 +64,7 @@ export const mailgunRouter = router({
           name: input.name,
           apiKey: input.apiKey,
           domain: input.domain,
+          fromEmail: input.fromEmail ?? "noreply",
         },
       })
     }),
@@ -68,6 +100,7 @@ export const mailgunRouter = router({
         name: z.string().min(1),
         apiKey: z.string().optional(),
         domain: z.string().min(1),
+        fromEmail: z.string().optional(),
       }),
     )
     .mutation(({ ctx, input }) => {
@@ -77,6 +110,7 @@ export const mailgunRouter = router({
           name: input.name,
           domain: input.domain,
           ...(input.apiKey ? { apiKey: input.apiKey } : {}),
+          ...(input.fromEmail !== undefined ? { fromEmail: input.fromEmail } : {}),
         },
       })
     }),
