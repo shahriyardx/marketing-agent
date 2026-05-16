@@ -37,8 +37,15 @@ import { Switch } from "@/components/ui/switch"
 import { ColorPicker } from "@/components/color-picker"
 
 const COLOR_PRESETS = [
-  "#5865F2", "#248046", "#da373c", "#f0b232", "#059669",
-  "#0891b2", "#7c3aed", "#db2777", "#64748b",
+  "#5865F2",
+  "#248046",
+  "#da373c",
+  "#f0b232",
+  "#059669",
+  "#0891b2",
+  "#7c3aed",
+  "#db2777",
+  "#64748b",
 ]
 
 const schema = z.object({
@@ -96,7 +103,12 @@ export default function CampaignsPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", mailgunAccountId: "", templateId: "", color: "#5865F2" },
+    defaultValues: {
+      name: "",
+      mailgunAccountId: "",
+      templateId: "",
+      color: "#5865F2",
+    },
   })
 
   function onCreate(values: FormValues) {
@@ -384,8 +396,7 @@ export default function CampaignsPage() {
           {campaigns.map((c) => {
             const missing: string[] = []
             if (!c.template) missing.push("Template is missing")
-            if (!c.mailgunAccount)
-              missing.push("Mailgun is missing")
+            if (!c.mailgunAccount) missing.push("Mailgun is missing")
             else if (!c.mailgunAccount.enabled)
               missing.push("Mailgun is disabled")
             const hasIssue = missing.length > 0
@@ -395,8 +406,7 @@ export default function CampaignsPage() {
                 key={c.id}
                 className={cn(
                   !c.enabled && "opacity-50",
-                  hasIssue &&
-                    "border-yellow-600/50 dark:border-yellow-500/50",
+                  hasIssue && "border-yellow-600/50 dark:border-yellow-500/50",
                 )}
                 style={{ borderLeft: `3px solid ${c.color}` }}
               >
@@ -404,8 +414,7 @@ export default function CampaignsPage() {
                   <CardTitle
                     className={cn(
                       "text-xs font-medium",
-                      (!c.enabled || hasIssue) &&
-                        "text-muted-foreground",
+                      (!c.enabled || hasIssue) && "text-muted-foreground",
                     )}
                   >
                     {c.name}
@@ -454,7 +463,8 @@ export default function CampaignsPage() {
                   )}
                 </CardContent>
               </Card>
-            )})}
+            )
+          })}
         </div>
       )}
     </>

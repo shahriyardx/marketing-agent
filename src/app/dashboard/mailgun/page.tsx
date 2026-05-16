@@ -152,7 +152,12 @@ export default function MailgunPage() {
 
   function openEdit(account: Account) {
     setEditTarget(account)
-    form.reset({ name: account.name, apiKey: "", domain: account.domain, fromEmail: account.fromEmail })
+    form.reset({
+      name: account.name,
+      apiKey: "",
+      domain: account.domain,
+      fromEmail: account.fromEmail,
+    })
   }
 
   function openCreate() {
@@ -343,9 +348,7 @@ export default function MailgunPage() {
                   control={form.control}
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="edit-from">
-                        From Email
-                      </FieldLabel>
+                      <FieldLabel htmlFor="edit-from">From Email</FieldLabel>
                       <Input
                         {...field}
                         id="edit-from"
@@ -367,7 +370,12 @@ export default function MailgunPage() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={updateMutation.isPending || validateMutation.isPending}>
+                <Button
+                  type="submit"
+                  disabled={
+                    updateMutation.isPending || validateMutation.isPending
+                  }
+                >
                   {validateMutation.isPending
                     ? "Validating…"
                     : updateMutation.isPending
@@ -502,9 +510,7 @@ export default function MailgunPage() {
                   control={form.control}
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="mg-from">
-                        From Email
-                      </FieldLabel>
+                      <FieldLabel htmlFor="mg-from">From Email</FieldLabel>
                       <Input
                         {...field}
                         id="mg-from"
@@ -519,7 +525,12 @@ export default function MailgunPage() {
                 />
               </FieldGroup>
               <DialogFooter>
-                <Button type="submit" disabled={createMutation.isPending || validateMutation.isPending}>
+                <Button
+                  type="submit"
+                  disabled={
+                    createMutation.isPending || validateMutation.isPending
+                  }
+                >
                   {validateMutation.isPending
                     ? "Validating…"
                     : createMutation.isPending

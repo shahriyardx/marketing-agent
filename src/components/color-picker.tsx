@@ -3,8 +3,15 @@ import { cn } from "@/lib/utils"
 import { Field, FieldLabel } from "@/components/ui/field"
 
 const COLOR_PRESETS = [
-  "#5865F2", "#248046", "#da373c", "#f0b232", "#059669",
-  "#0891b2", "#7c3aed", "#db2777", "#64748b",
+  "#5865F2",
+  "#248046",
+  "#da373c",
+  "#f0b232",
+  "#059669",
+  "#0891b2",
+  "#7c3aed",
+  "#db2777",
+  "#64748b",
 ]
 
 export function ColorPicker({

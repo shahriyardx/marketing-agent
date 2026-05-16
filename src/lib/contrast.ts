@@ -8,7 +8,8 @@ export function contrastText(hex: string): string {
   const g = parseInt(hex.slice(3, 5), 16)
   const b = parseInt(hex.slice(5, 7), 16)
 
-  const L = 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b)
+  const L =
+    0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b)
   const ratio = (L + 0.05) / 0.05
 
   return ratio > 4.5 ? "#000" : "#fff"
