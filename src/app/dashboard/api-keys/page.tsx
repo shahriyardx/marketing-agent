@@ -7,6 +7,7 @@ import { z } from "zod"
 import { CopyIcon, PlusIcon } from "lucide-react"
 
 import { trpc } from "@/lib/trpc/client"
+import { ApiDocs } from "./api-docs"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -257,6 +258,8 @@ export default function ApiKeysPage() {
           </Table>
         </div>
       )}
+
+      <ApiDocs />
     </>
   )
 }

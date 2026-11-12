@@ -1,12 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import {
   EllipsisVerticalIcon,
   PencilIcon,
+  SearchIcon,
+  SendIcon,
   Trash2Icon,
   Upload,
 } from "lucide-react"
@@ -68,6 +70,7 @@ type Contact = {
   email: string
   phone: string | null
   message: string | null
+  lastCampaignSentId: string | null
   lastCampaignSent: { name: string; color: string } | null
   createdAt: Date | string
 }
@@ -80,8 +83,12 @@ export default function ContactsPage() {
   } | null>(null)
 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [search, setSearch] = useState("")
+  // "all" | "none" (never sent) | campaign id
+  const [campaignFilter, setCampaignFilter] = useState("all")
   const [sendTarget, setSendTarget] = useState<{
-    contact: Contact
+    contactIds: string[]
+    label: string
     campaignId: string
   } | null>(null)
   const [batchDeleteTarget, setBatchDeleteTarget] = useState<{
@@ -101,9 +108,37 @@ export default function ContactsPage() {
   const { data: campaigns = [] } = trpc.campaigns.getAll.useQuery()
   const campaignSendMutation = trpc.campaigns.send.useMutation({
     onSuccess: () => {
-      setSendTarget(null)
+      setSelectedIds([])
+      utils.contacts.getAll.invalidate()
     },
   })
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return contacts.filter((c) => {
+      if (campaignFilter === "none" && c.lastCampaignSentId) return false
+      if (
+        campaignFilter !== "all" &&
+        campaignFilter !== "none" &&
+        c.lastCampaignSentId !== campaignFilter
+      )
+        return false
+      if (!q) return true
+      return [`${c.firstName} ${c.lastName}`, c.email, c.phone ?? ""].some(
+        (v) => v.toLowerCase().includes(q),
+      )
+    })
+  }, [contacts, search, campaignFilter])
+
+  // Only act on selected rows that are still visible after filtering.
+  const visibleSelectedIds = filtered
+    .filter((c) => selectedIds.includes(c.id))
+    .map((c) => c.id)
+
+  function openSend(contactIds: string[], label: string) {
+    campaignSendMutation.reset()
+    setSendTarget({ contactIds, label, campaignId: "" })
+  }
   const importExcelMutation = trpc.contacts.importExcel.useMutation({
     onSuccess: () => {
       setImportOpen(false)
@@ -252,9 +287,9 @@ export default function ContactsPage() {
     const ws = wb.addWorksheet("Contacts")
 
     const selected =
-      selectedIds.length > 0
-        ? contacts.filter((c) => selectedIds.includes(c.id))
-        : contacts
+      visibleSelectedIds.length > 0
+        ? filtered.filter((c) => visibleSelectedIds.includes(c.id))
+        : filtered
 
     ws.columns = [
       { header: "First Name", key: "firstName", width: 20 },
@@ -295,16 +330,16 @@ export default function ContactsPage() {
   }
 
   function toggleSelectAll() {
-    if (selectedIds.length === contacts.length) {
+    if (filtered.length > 0 && visibleSelectedIds.length === filtered.length) {
       setSelectedIds([])
     } else {
-      setSelectedIds(contacts.map((c) => c.id))
+      setSelectedIds(filtered.map((c) => c.id))
     }
   }
 
   function handleBatchDelete() {
-    if (selectedIds.length === 0) return
-    deleteManyMutation.mutate({ ids: selectedIds })
+    if (!batchDeleteTarget) return
+    deleteManyMutation.mutate({ ids: batchDeleteTarget.ids })
   }
 
   return (
@@ -319,21 +354,39 @@ export default function ContactsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          {selectedIds.length > 0 && (
-            <Button
-              variant="destructive"
-              onClick={() =>
-                setBatchDeleteTarget({
-                  ids: selectedIds,
-                  count: selectedIds.length,
-                })
-              }
-            >
-              Delete {selectedIds.length}
-            </Button>
+          {visibleSelectedIds.length > 0 && (
+            <>
+              <Button
+                onClick={() =>
+                  openSend(
+                    visibleSelectedIds,
+                    `${visibleSelectedIds.length} contact${visibleSelectedIds.length !== 1 ? "s" : ""}`,
+                  )
+                }
+              >
+                <SendIcon className="mr-2 h-4 w-4" />
+                Send {visibleSelectedIds.length}
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() =>
+                  setBatchDeleteTarget({
+                    ids: visibleSelectedIds,
+                    count: visibleSelectedIds.length,
+                  })
+                }
+              >
+                Delete {visibleSelectedIds.length}
+              </Button>
+            </>
           )}
           <Button variant="outline" onClick={handleExport}>
-            Export{selectedIds.length > 0 ? ` ${selectedIds.length}` : ""}
+            Export
+            {visibleSelectedIds.length > 0
+              ? ` ${visibleSelectedIds.length}`
+              : filtered.length !== contacts.length
+                ? ` ${filtered.length}`
+                : ""}
           </Button>
           <Button onClick={() => setImportOpen(true)}>
             <Upload className="mr-2 h-4 w-4" />
@@ -565,7 +618,7 @@ export default function ContactsPage() {
             <DialogDescription>
               Choose a campaign to send to{" "}
               <span className="font-medium text-foreground">
-                {sendTarget?.contact.firstName} {sendTarget?.contact.lastName}
+                {sendTarget?.label}
               </span>
               .
             </DialogDescription>
@@ -605,10 +658,28 @@ export default function ContactsPage() {
                 {campaignSendMutation.error.message}
               </p>
             )}
-            {campaignSendMutation.isSuccess && (
-              <p className="text-xs text-emerald-600">
-                Campaign sent successfully!
-              </p>
+            {campaignSendMutation.data && (
+              <div className="space-y-1 text-xs">
+                <p className="text-emerald-600">
+                  Sent to {campaignSendMutation.data.sent} contact
+                  {campaignSendMutation.data.sent !== 1 ? "s" : ""}.
+                </p>
+                {campaignSendMutation.data.failed.length > 0 && (
+                  <ul className="max-h-32 overflow-auto text-destructive">
+                    {campaignSendMutation.data.failed.map((f) => (
+                      <li key={f.email}>
+                        {f.email}: {f.error}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {campaignSendMutation.data.skipped > 0 && (
+                  <p className="text-muted-foreground">
+                    {campaignSendMutation.data.skipped} not sent (stopped after
+                    rate limit).
+                  </p>
+                )}
+              </div>
             )}
           </div>
           <DialogFooter>
@@ -620,11 +691,13 @@ export default function ContactsPage() {
                 if (!sendTarget?.campaignId) return
                 campaignSendMutation.mutate({
                   campaignId: sendTarget.campaignId,
-                  contactId: sendTarget.contact.id,
+                  contactIds: sendTarget.contactIds,
                 })
               }}
               disabled={
-                !sendTarget?.campaignId || campaignSendMutation.isPending
+                !sendTarget?.campaignId ||
+                campaignSendMutation.isPending ||
+                campaignSendMutation.isSuccess
               }
             >
               {campaignSendMutation.isPending ? "Sending…" : "Send"}
@@ -677,105 +750,148 @@ export default function ContactsPage() {
           collecting submissions.
         </div>
       ) : (
-        <div className="rounded-none border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-0">
-                  <input
-                    type="checkbox"
-                    className="size-4 cursor-pointer accent-primary"
-                    checked={
-                      contacts.length > 0 &&
-                      selectedIds.length === contacts.length
-                    }
-                    onChange={toggleSelectAll}
-                  />
-                </TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Campaign</TableHead>
-                <TableHead className="w-0" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {contacts.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell>
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-full max-w-sm">
+              <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search name, email, phone…"
+                className="pl-8"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <Select value={campaignFilter} onValueChange={setCampaignFilter}>
+              <SelectTrigger className="w-52">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All campaigns</SelectItem>
+                <SelectItem value="none">Never sent</SelectItem>
+                {campaigns.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    Last sent: {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground">
+              {filtered.length} of {contacts.length}
+              {visibleSelectedIds.length > 0 &&
+                ` · ${visibleSelectedIds.length} selected`}
+            </span>
+          </div>
+          <div className="rounded-none border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-0">
                     <input
                       type="checkbox"
                       className="size-4 cursor-pointer accent-primary"
-                      checked={selectedIds.includes(c.id)}
-                      onChange={() => toggleSelect(c.id)}
+                      checked={
+                        filtered.length > 0 &&
+                        visibleSelectedIds.length === filtered.length
+                      }
+                      onChange={toggleSelectAll}
                     />
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {c.firstName} {c.lastName}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {c.email}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {c.phone || "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {new Date(c.createdAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    {c.lastCampaignSent ? (
-                      <Badge
-                        style={{
-                          backgroundColor: c.lastCampaignSent.color,
-                          color: contrastText(c.lastCampaignSent.color),
-                        }}
-                      >
-                        {c.lastCampaignSent.name}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon-sm">
-                          <EllipsisVerticalIcon />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() =>
-                            setSendTarget({ contact: c, campaignId: "" })
-                          }
-                        >
-                          Send Campaign
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openEdit(c)}>
-                          <PencilIcon className="h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() =>
-                            setDeleteTarget({
-                              id: c.id,
-                              name: `${c.firstName} ${c.lastName}`,
-                            })
-                          }
-                        >
-                          <Trash2Icon className="h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+                  </TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Campaign</TableHead>
+                  <TableHead className="w-0" />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={7}
+                      className="py-8 text-center text-muted-foreground"
+                    >
+                      No contacts match.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {filtered.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        className="size-4 cursor-pointer accent-primary"
+                        checked={selectedIds.includes(c.id)}
+                        onChange={() => toggleSelect(c.id)}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {c.firstName} {c.lastName}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {c.email}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {c.phone || "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {new Date(c.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      {c.lastCampaignSent ? (
+                        <Badge
+                          style={{
+                            backgroundColor: c.lastCampaignSent.color,
+                            color: contrastText(c.lastCampaignSent.color),
+                          }}
+                        >
+                          {c.lastCampaignSent.name}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon-sm">
+                            <EllipsisVerticalIcon />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() =>
+                              openSend([c.id], `${c.firstName} ${c.lastName}`)
+                            }
+                          >
+                            Send Campaign
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEdit(c)}>
+                            <PencilIcon className="h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() =>
+                              setDeleteTarget({
+                                id: c.id,
+                                name: `${c.firstName} ${c.lastName}`,
+                              })
+                            }
+                          >
+                            <Trash2Icon className="h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
     </>
   )

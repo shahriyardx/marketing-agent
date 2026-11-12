@@ -102,11 +102,11 @@ export const campaignsRouter = router({
     .input(
       z.object({
         campaignId: z.string(),
-        contactId: z.string(),
+        contactIds: z.array(z.string()).min(1),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const [campaign, contact] = await Promise.all([
+      const [campaign, contacts] = await Promise.all([
         ctx.prisma.campaign.findUnique({
           where: { id: input.campaignId },
           include: {
@@ -114,8 +114,8 @@ export const campaignsRouter = router({
             template: true,
           },
         }),
-        ctx.prisma.contact.findUnique({
-          where: { id: input.contactId },
+        ctx.prisma.contact.findMany({
+          where: { id: { in: input.contactIds } },
         }),
       ])
 
@@ -124,7 +124,7 @@ export const campaignsRouter = router({
           code: "NOT_FOUND",
           message: "Campaign not found",
         })
-      if (!contact)
+      if (contacts.length === 0)
         throw new TRPCError({ code: "NOT_FOUND", message: "Contact not found" })
       if (!campaign.template)
         throw new TRPCError({
@@ -149,17 +149,29 @@ export const campaignsRouter = router({
         })
       }
 
-      const result = await sendMailgunEmail({
-        campaign: {
-          id: campaign.id,
-          name: campaign.name,
-          template: campaign.template,
-          mailgunAccount: campaign.mailgunAccount,
-        },
-        contact,
-      })
+      // ponytail: sequential sends, fine for hundreds; move to a queue if lists get big.
+      let sent = 0
+      const failed: { email: string; error: string }[] = []
+      for (const contact of contacts) {
+        const result = await sendMailgunEmail({
+          campaign: {
+            id: campaign.id,
+            name: campaign.name,
+            template: campaign.template,
+            mailgunAccount: campaign.mailgunAccount,
+          },
+          contact,
+        })
 
-      if (!result.sent) {
+        if (result.sent) {
+          sent++
+          await ctx.prisma.contact.update({
+            where: { id: contact.id },
+            data: { lastCampaignSentId: campaign.id },
+          })
+          continue
+        }
+
         if (result.status === 429) {
           const retryAfter = result.retryAfter ?? 3600
           const rateLimitedUntil = new Date(Date.now() + retryAfter * 1000)
@@ -167,29 +179,34 @@ export const campaignsRouter = router({
             where: { id: campaign.id },
             data: { rateLimitedUntil },
           })
-          throw new TRPCError({
-            code: "TOO_MANY_REQUESTS",
-            message: `Campaign rate limited until ${rateLimitedUntil.toISOString()}.`,
+          failed.push({
+            email: contact.email,
+            error: `Rate limited until ${rateLimitedUntil.toISOString()}`,
           })
+          break
         }
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: `Mailgun send failed: ${result.body}`,
+        failed.push({ email: contact.email, error: result.body })
+      }
+
+      if (sent > 0) {
+        await ctx.prisma.mailgunAccount.update({
+          where: { id: campaign.mailgunAccountId as string },
+          data: { sentCount: { increment: sent } },
         })
       }
 
-      await Promise.all([
-        ctx.prisma.contact.update({
-          where: { id: contact.id },
-          data: { lastCampaignSentId: campaign.id },
-        }),
-        ctx.prisma.mailgunAccount.update({
-          where: { id: campaign.mailgunAccountId as string },
-          data: { sentCount: { increment: 1 } },
-        }),
-      ])
+      if (sent === 0 && failed.length > 0) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Send failed: ${failed[0].error}`,
+        })
+      }
 
-      return { sent: true }
+      return {
+        sent,
+        failed,
+        skipped: contacts.length - sent - failed.length,
+      }
     }),
 
   delete: protectedProcedure

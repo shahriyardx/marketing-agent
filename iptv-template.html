@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<!--
+  Crystal IPTV Premium UK — offer email.
+  Suggested subject: Your IPTV UK Entertainment Starts Here
+  Variables filled by the app: {{name}} {{first_name}} {{last_name}} {{email}} {{phone}} {{message}}
+  Replace https://wa.me/440000000000 with your WhatsApp link before use.
+  %unsubscribe_url% is filled by Mailgun only when unsubscribe tracking is on for the domain.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <title>Your IPTV UK Entertainment Starts Here</title>
+    <style>
+      @media (max-width: 600px) {
+        .px { padding-left: 20px !important; padding-right: 20px !important; }
+        .col { display: block !important; width: 100% !important; }
+        .h1 { font-size: 26px !important; }
+      }
+    </style>
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #f8f4ee; font-family: 'Trebuchet MS', Arial, Helvetica, sans-serif">
+    <!-- Preheader: shows in the inbox preview, hidden in the email -->
+    <div style="display: none; max-height: 0; overflow: hidden; opacity: 0">
+      One year of IPTV for £50. Over 18,000 channels. Try it free for 24 hours.
+    </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f4ee; padding: 24px 12px">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 620px; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 24px rgba(91, 58, 18, 0.08)">
+            <!-- Header -->
+            <tr>
+              <td
+                align="center"
+                bgcolor="#6b4419"
+                style="padding: 44px 32px; background-color: #6b4419; background-image: linear-gradient(120deg, #4a2c0f 0%, #7a4a1e 50%, #6ab04c 100%)"
+              >
+                <h1 class="h1" style="margin: 0; color: #ffffff; font-size: 32px; font-weight: 700; line-height: 1.2">
+                  Crystal IPTV Premium UK
+                </h1>
+                <p style="margin: 14px 0 0; color: #ffffff; font-size: 16px; font-weight: 600">
+                  Your Yearly IPTV Package with a Free Trial
+                </p>
+              </td>
+            </tr>
+
+            <!-- Price -->
+            <tr>
+              <td class="px" style="padding: 30px 30px 0">
+                {{#if first_name}}
+                <p style="margin: 0 0 20px; color: #2d2217; font-size: 16px; text-align: center">Hi {{first_name}},</p>
+                {{/if}}
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border: 2px solid #5cb85c; border-radius: 14px">
+                  <tr>
+                    <td align="center" style="padding: 32px 20px">
+                      <p style="margin: 0; color: #5b3a12; font-size: 44px; font-weight: 700; line-height: 1">£50</p>
+                      <p style="margin: 18px 0 0; color: #2d2217; font-size: 16px; font-weight: 600">One year IPTV access</p>
+                      <p style="margin: 14px 0 0; color: #3d3127; font-size: 16px">📺 Over 18,000 Channels Available</p>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin: 14px 0 0; color: #2d2217; font-size: 16px; line-height: 1.7; text-align: center">
+                  Enjoy a large channel list with UK favourites, European stations, global entertainment, live events
+                  and on-demand viewing options, all in one simple package.
+                </p>
+              </td>
+            </tr>
+
+            <!-- Divider -->
+            <tr>
+              <td class="px" style="padding: 28px 30px 0"><div style="border-top: 1px solid #ece4da"></div></td>
+            </tr>
+
+            <!-- Features -->
+            <tr>
+              <td class="px" style="padding: 26px 30px 0">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td class="col" width="50%" valign="top" style="padding: 6px">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #faf5ef; border: 1px solid #eadfd2; border-radius: 10px">
+                        <tr>
+                          <td style="padding: 20px 16px">
+                            <p style="margin: 0 0 12px; font-size: 22px">🎁</p>
+                            <p style="margin: 0 0 8px; color: #6b4a1a; font-size: 16px; font-weight: 700">Free Trial</p>
+                            <p style="margin: 0; color: #4a3d31; font-size: 14px; line-height: 1.5">Try the IPTV service for 24 hours before purchasing</p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                    <td class="col" width="50%" valign="top" style="padding: 6px">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #faf5ef; border: 1px solid #eadfd2; border-radius: 10px">
+                        <tr>
+                          <td style="padding: 20px 16px">
+                            <p style="margin: 0 0 12px; font-size: 22px">🇬🇧</p>
+                            <p style="margin: 0 0 8px; color: #6b4a1a; font-size: 16px; font-weight: 700">UK Favourites</p>
+                            <p style="margin: 0; color: #4a3d31; font-size: 14px; line-height: 1.5">British channels and popular UK entertainment categories</p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="col" width="50%" valign="top" style="padding: 6px">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #faf5ef; border: 1px solid #eadfd2; border-radius: 10px">
+                        <tr>
+                          <td style="padding: 20px 16px">
+                            <p style="margin: 0 0 12px; font-size: 22px">🌍</p>
+                            <p style="margin: 0 0 8px; color: #6b4a1a; font-size: 16px; font-weight: 700">Global TV</p>
+                            <p style="margin: 0; color: #4a3d31; font-size: 14px; line-height: 1.5">European and international channels from multiple regions</p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                    <td class="col" width="50%" valign="top" style="padding: 6px">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #faf5ef; border: 1px solid #eadfd2; border-radius: 10px">
+                        <tr>
+                          <td style="padding: 20px 16px">
+                            <p style="margin: 0 0 12px; font-size: 22px">🔞</p>
+                            <p style="margin: 0 0 8px; color: #6b4a1a; font-size: 16px; font-weight: 700">Optional Adult</p>
+                            <p style="margin: 0; color: #4a3d31; font-size: 14px; line-height: 1.5">Adult channels are available as an optional category</p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="col" width="50%" valign="top" style="padding: 6px">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #faf5ef; border: 1px solid #eadfd2; border-radius: 10px">
+                        <tr>
+                          <td style="padding: 20px 16px">
+                            <p style="margin: 0 0 12px; font-size: 22px">⚡</p>
+                            <p style="margin: 0 0 8px; color: #6b4a1a; font-size: 16px; font-weight: 700">Quick Setup</p>
+                            <p style="margin: 0; color: #4a3d31; font-size: 14px; line-height: 1.5">Activation is fast and usually completed in under two minutes</p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                    <td class="col" width="50%" valign="top" style="padding: 6px">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #faf5ef; border: 1px solid #eadfd2; border-radius: 10px">
+                        <tr>
+                          <td style="padding: 20px 16px">
+                            <p style="margin: 0 0 12px; font-size: 22px">🛠️</p>
+                            <p style="margin: 0 0 8px; color: #6b4a1a; font-size: 16px; font-weight: 700">Support</p>
+                            <p style="margin: 0; color: #4a3d31; font-size: 14px; line-height: 1.5">24/7 customer support through WhatsApp</p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Divider -->
+            <tr>
+              <td class="px" style="padding: 28px 30px 0"><div style="border-top: 1px solid #ece4da"></div></td>
+            </tr>
+
+            <!-- Devices -->
+            <tr>
+              <td class="px" align="center" style="padding: 26px 30px 0">
+                <p style="margin: 0 0 18px; color: #5b3a12; font-size: 20px; font-weight: 700">📱 Compatible devices</p>
+                <div style="font-size: 13px; line-height: 1">
+                  <span style="display: inline-block; margin: 0 3px 8px; padding: 9px 10px; border: 1px solid #eadfd2; border-radius: 6px; color: #2d2217">Samsung TV</span>
+                  <span style="display: inline-block; margin: 0 3px 8px; padding: 9px 10px; border: 1px solid #eadfd2; border-radius: 6px; color: #2d2217">LG TV</span>
+                  <span style="display: inline-block; margin: 0 3px 8px; padding: 9px 10px; border: 1px solid #eadfd2; border-radius: 6px; color: #2d2217">Android TV</span>
+                  <span style="display: inline-block; margin: 0 3px 8px; padding: 9px 10px; border: 1px solid #eadfd2; border-radius: 6px; color: #2d2217">Fire TV</span>
+                  <span style="display: inline-block; margin: 0 3px 8px; padding: 9px 10px; border: 1px solid #eadfd2; border-radius: 6px; color: #2d2217">TV Box</span>
+                  <span style="display: inline-block; margin: 0 3px 8px; padding: 9px 10px; border: 1px solid #eadfd2; border-radius: 6px; color: #2d2217">Windows</span>
+                  <span style="display: inline-block; margin: 0 3px 8px; padding: 9px 10px; border: 1px solid #eadfd2; border-radius: 6px; color: #2d2217">Mac</span>
+                </div>
+              </td>
+            </tr>
+
+            <!-- CTA -->
+            <tr>
+              <td align="center" class="px" style="padding: 22px 30px 36px">
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td bgcolor="#5cb85c" style="background-color: #5cb85c; border-radius: 10px">
+                      <a
+                        href="https://wa.me/440000000000"
+                        style="display: inline-block; padding: 16px 36px; color: #ffffff; font-size: 17px; font-weight: 700; text-decoration: none"
+                      >
+                        Start Your Free Trial
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin: 12px 0 0; color: #7a6a5a; font-size: 13px">Message us on WhatsApp to get started.</p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td align="center" style="padding: 22px 30px; background-color: #faf5ef; border-top: 1px solid #ece4da">
+                <p style="margin: 0; color: #9a8a7a; font-size: 12px; line-height: 1.6">
+                  Sent to {{email}} ·
+                  <a href="%unsubscribe_url%" style="color: #9a8a7a; text-decoration: underline">Unsubscribe</a>
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
