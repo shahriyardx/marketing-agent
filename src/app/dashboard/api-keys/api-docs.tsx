@@ -262,8 +262,8 @@ curl_close($ch);`
         </ol>
         <p className="text-xs text-muted-foreground">
           Forms need a name and a valid email. Forms without them are skipped.
-          Every form on the site is sent. To limit it, add a check for the form
-          ID at the top of the matching hook.
+          By default every form on the site is sent. To send only some forms,
+          pick them under <strong>Forms</strong> on the plugin settings page.
         </p>
         <details className="text-xs">
           <summary className="cursor-pointer text-muted-foreground">
