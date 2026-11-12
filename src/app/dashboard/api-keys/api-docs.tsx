@@ -122,17 +122,27 @@ curl_close($ch);`
 /**
  * Plugin Name: Marketing Agent Connector
  * Description: Sends form submissions to Marketing Agent as contacts.
- * Version:     1.0.0
+ * Version:     1.1.0
  * Requires PHP: 7.4
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'MARKETING_AGENT_URL', '${url}' );
+define( 'MARKETING_AGENT_DEFAULT_URL', '${url}' );
+
+// Settings come from Settings > Marketing Agent.
+// MARKETING_AGENT_API_KEY in wp-config.php overrides the saved key.
+function marketing_agent_option( $name ) {
+	if ( $name === 'api_key' && defined( 'MARKETING_AGENT_API_KEY' ) ) return MARKETING_AGENT_API_KEY;
+	$value = (string) get_option( 'marketing_agent_' . $name, '' );
+	if ( $name === 'url' && $value === '' ) return MARKETING_AGENT_DEFAULT_URL;
+	return $value;
+}
 
 function marketing_agent_send( $data ) {
-	if ( ! defined( 'MARKETING_AGENT_API_KEY' ) ) {
-		error_log( 'Marketing Agent: MARKETING_AGENT_API_KEY is not set in wp-config.php' );
+	$key = marketing_agent_option( 'api_key' );
+	if ( $key === '' ) {
+		error_log( 'Marketing Agent: no API key. Add it in Settings > Marketing Agent.' );
 		return;
 	}
 
@@ -153,10 +163,10 @@ function marketing_agent_send( $data ) {
 		'message'   => trim( (string) ( $data['message'] ?? '' ) ),
 	), fn( $v ) => $v !== '' );
 
-	$res = wp_remote_post( MARKETING_AGENT_URL, array(
+	$res = wp_remote_post( marketing_agent_option( 'url' ), array(
 		'timeout' => 5,
 		'headers' => array(
-			'Authorization' => 'Bearer ' . MARKETING_AGENT_API_KEY,
+			'Authorization' => 'Bearer ' . $key,
 			'Content-Type'  => 'application/json',
 		),
 		'body'    => wp_json_encode( $body ),
@@ -173,9 +183,77 @@ function marketing_agent_send( $data ) {
 	}
 }
 
+// Settings page: Settings > Marketing Agent
+add_action( 'admin_init', function () {
+	register_setting( 'marketing_agent', 'marketing_agent_url', array( 'sanitize_callback' => 'esc_url_raw' ) );
+	register_setting( 'marketing_agent', 'marketing_agent_api_key', array( 'sanitize_callback' => 'sanitize_text_field' ) );
+} );
+
+add_action( 'admin_menu', function () {
+	add_options_page( 'Marketing Agent', 'Marketing Agent', 'manage_options', 'marketing-agent', 'marketing_agent_settings_page' );
+} );
+
+add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function ( $links ) {
+	array_unshift( $links, '<a href="' . esc_url( admin_url( 'options-general.php?page=marketing-agent' ) ) . '">Settings</a>' );
+	return $links;
+} );
+
+function marketing_agent_status_notice( $key ) {
+	if ( $key === '' ) {
+		echo '<div class="notice notice-warning"><p>Add your API key to start sending contacts.</p></div>';
+		return;
+	}
+	$hello = preg_replace( '#/add-contact/?$#', '/hello', marketing_agent_option( 'url' ) );
+	$res   = wp_remote_get( $hello, array(
+		'timeout' => 5,
+		'headers' => array( 'Authorization' => 'Bearer ' . $key ),
+	) );
+	$code = is_wp_error( $res ) ? 0 : wp_remote_retrieve_response_code( $res );
+	if ( $code === 200 ) {
+		echo '<div class="notice notice-success"><p>Connected. Form submissions are sent to Marketing Agent.</p></div>';
+		return;
+	}
+	$why = is_wp_error( $res ) ? $res->get_error_message() : ( $code === 401 ? 'API key is wrong' : 'HTTP ' . $code );
+	echo '<div class="notice notice-error"><p>Not connected: ' . esc_html( $why ) . '</p></div>';
+}
+
+function marketing_agent_settings_page() {
+	$key = marketing_agent_option( 'api_key' );
+	?>
+	<div class="wrap">
+		<h1>Marketing Agent</h1>
+		<?php marketing_agent_status_notice( $key ); ?>
+		<form method="post" action="options.php">
+			<?php settings_fields( 'marketing_agent' ); ?>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><label for="ma-key">API key</label></th>
+					<td>
+						<?php if ( defined( 'MARKETING_AGENT_API_KEY' ) ) : ?>
+							<p>Set in <code>wp-config.php</code>.</p>
+						<?php else : ?>
+							<input id="ma-key" name="marketing_agent_api_key" type="password" class="regular-text" autocomplete="off" value="<?php echo esc_attr( $key ); ?>" />
+							<p class="description">Create a key on the API Keys page in Marketing Agent.</p>
+						<?php endif; ?>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="ma-url">API URL</label></th>
+					<td>
+						<input id="ma-url" name="marketing_agent_url" type="url" class="regular-text" value="<?php echo esc_attr( marketing_agent_option( 'url' ) ); ?>" />
+						<p class="description">Leave as it is unless support tells you to change it.</p>
+					</td>
+				</tr>
+			</table>
+			<?php submit_button(); ?>
+		</form>
+	</div>
+	<?php
+}
+
 // Contact Form 7
-add_action( 'wpcf7_mail_sent', function ( $form ) {
-	$submission = WPCF7_Submission::get_instance();
+// Runs before CF7 sends its email, so contacts still arrive if site email is broken.
+add_action( 'wpcf7_before_send_mail', function ( $form, &$abort, $submission ) {
 	if ( ! $submission ) return;
 	$d = $submission->get_posted_data();
 	marketing_agent_send( array(
@@ -185,7 +263,7 @@ add_action( 'wpcf7_mail_sent', function ( $form ) {
 		'phone'     => $d['phone'] ?? $d['your-phone'] ?? '',
 		'message'   => $d['your-message'] ?? $d['message'] ?? '',
 	) );
-} );
+}, 10, 3 );
 
 // WPForms
 add_action( 'wpforms_process_complete', function ( $fields ) {
@@ -334,13 +412,6 @@ add_action( 'gform_after_submission', function ( $entry, $form ) {
         <ol className="list-decimal space-y-3 pl-5 text-sm">
           <li className="space-y-2">
             <p>
-              Open <code>wp-config.php</code>. Add this line above{" "}
-              <code>{"/* That's all, stop editing! */"}</code>:
-            </p>
-            <Code code={wpConfig} />
-          </li>
-          <li className="space-y-2">
-            <p>
               Create the file{" "}
               <code>
                 wp-content/plugins/marketing-agent-connector/marketing-agent-connector.php
@@ -352,6 +423,11 @@ add_action( 'gform_after_submission', function ( $entry, $form ) {
           <li>
             In WordPress admin, go to <strong>Plugins</strong>. Activate{" "}
             <strong>Marketing Agent Connector</strong>.
+          </li>
+          <li>
+            Go to <strong>Settings</strong> → <strong>Marketing Agent</strong>.
+            Paste your API key and click <strong>Save Changes</strong>. The page
+            shows &quot;Connected&quot; when the key works.
           </li>
           <li className="space-y-2">
             <p>Set up your form fields:</p>
@@ -380,6 +456,11 @@ add_action( 'gform_after_submission', function ( $entry, $form ) {
           Every form on the site is sent. To limit it, add a check for the form
           ID at the top of the matching hook.
         </p>
+        <p className="text-xs text-muted-foreground">
+          Optional: to keep the key out of the database, add this line to{" "}
+          <code>wp-config.php</code> instead. It overrides the settings page.
+        </p>
+        <Code code={wpConfig} />
       </div>
 
       <div className="space-y-2">
