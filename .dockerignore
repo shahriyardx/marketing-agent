@@ -1,0 +1,13 @@
+.git
+.next
+node_modules
+generated
+.env
+.env*.local
+*.tsbuildinfo
+.zed
+Dockerfile
+.dockerignore
+.claude
+README.md
+docker-compose.yml
