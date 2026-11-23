@@ -70,6 +70,7 @@ export default function MailgunPage() {
       form.reset()
       utils.mailgun.getAll.invalidate()
     },
+    onError: (e) => form.setError("domain", { message: e.message }),
   })
   const updateMutation = trpc.mailgun.update.useMutation({
     onSuccess: () => {
@@ -77,6 +78,7 @@ export default function MailgunPage() {
       form.reset()
       utils.mailgun.getAll.invalidate()
     },
+    onError: (e) => form.setError("domain", { message: e.message }),
   })
   const toggleMutation = trpc.mailgun.toggle.useMutation({
     onSuccess: () => utils.mailgun.getAll.invalidate(),
@@ -84,8 +86,6 @@ export default function MailgunPage() {
   const deleteMutation = trpc.mailgun.delete.useMutation({
     onSuccess: () => utils.mailgun.getAll.invalidate(),
   })
-
-  const validateMutation = trpc.mailgun.validate.useMutation()
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -116,13 +116,6 @@ export default function MailgunPage() {
   async function onCreate(values: FormValues) {
     if (!validateApiKey(false)) return
 
-    try {
-      await validateMutation.mutateAsync({ apiKey: values.apiKey.trim() })
-    } catch {
-      form.setError("apiKey", { message: "API key rejected by Mailgun" })
-      return
-    }
-
     createMutation.mutate({ ...values, apiKey: values.apiKey.trim() })
   }
 
@@ -131,15 +124,6 @@ export default function MailgunPage() {
     if (!validateApiKey(true)) return
 
     const trimmedKey = values.apiKey.trim()
-
-    if (trimmedKey) {
-      try {
-        await validateMutation.mutateAsync({ apiKey: trimmedKey })
-      } catch {
-        form.setError("apiKey", { message: "API key rejected by Mailgun" })
-        return
-      }
-    }
 
     updateMutation.mutate({
       id: editTarget.id,
@@ -372,15 +356,9 @@ export default function MailgunPage() {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={
-                    updateMutation.isPending || validateMutation.isPending
-                  }
+                  disabled={updateMutation.isPending}
                 >
-                  {validateMutation.isPending
-                    ? "Validating…"
-                    : updateMutation.isPending
-                      ? "Saving…"
-                      : "Save Changes"}
+                  {updateMutation.isPending ? "Saving…" : "Save Changes"}
                 </Button>
               </DialogFooter>
             </form>
@@ -527,15 +505,9 @@ export default function MailgunPage() {
               <DialogFooter>
                 <Button
                   type="submit"
-                  disabled={
-                    createMutation.isPending || validateMutation.isPending
-                  }
+                  disabled={createMutation.isPending}
                 >
-                  {validateMutation.isPending
-                    ? "Validating…"
-                    : createMutation.isPending
-                      ? "Adding…"
-                      : "Add Account"}
+                  {createMutation.isPending ? "Verifying…" : "Add Account"}
                 </Button>
               </DialogFooter>
             </form>

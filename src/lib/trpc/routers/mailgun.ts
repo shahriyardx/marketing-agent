@@ -8,6 +8,34 @@ function maskKey(key: string) {
   return `${"*".repeat(key.length - 4)}${visible}`
 }
 
+async function assertKeyWorksForDomain(apiKey: string, domain: string) {
+  const encoded = Buffer.from(`api:${apiKey}`).toString("base64")
+  let res: Response
+  try {
+    res = await fetch(
+      `https://api.mailgun.net/v3/domains/${encodeURIComponent(domain)}`,
+      { headers: { Authorization: `Basic ${encoded}` } },
+    )
+  } catch {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Could not reach Mailgun to verify the API key",
+    })
+  }
+
+  if (res.ok) return
+
+  const messages: Record<number, string> = {
+    401: "Invalid Mailgun API key",
+    403: `This API key doesn't have access to ${domain}`,
+    404: `Domain ${domain} was not found for this API key (check the domain, and that the key is for the US region)`,
+  }
+  throw new TRPCError({
+    code: res.status === 401 || res.status === 403 ? "UNAUTHORIZED" : "BAD_REQUEST",
+    message: messages[res.status] ?? `Mailgun returned ${res.status} while verifying ${domain}`,
+  })
+}
+
 export const mailgunRouter = router({
   validate: protectedProcedure
     .input(
@@ -58,7 +86,8 @@ export const mailgunRouter = router({
         fromEmail: z.string().optional(),
       }),
     )
-    .mutation(({ ctx, input }) => {
+    .mutation(async ({ ctx, input }) => {
+      await assertKeyWorksForDomain(input.apiKey, input.domain)
       return ctx.prisma.mailgunAccount.create({
         data: {
           name: input.name,
@@ -103,7 +132,16 @@ export const mailgunRouter = router({
         fromEmail: z.string().optional(),
       }),
     )
-    .mutation(({ ctx, input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.prisma.mailgunAccount.findUnique({
+        where: { id: input.id },
+        select: { apiKey: true },
+      })
+      if (!existing)
+        throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" })
+
+      await assertKeyWorksForDomain(input.apiKey || existing.apiKey, input.domain)
+
       return ctx.prisma.mailgunAccount.update({
         where: { id: input.id },
         data: {
