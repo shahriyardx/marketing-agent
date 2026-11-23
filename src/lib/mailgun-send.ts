@@ -46,6 +46,30 @@ function renderVars(text: string, contact: ContactData) {
   })
 }
 
+const STATUS_HINTS: Record<number, string> = {
+  401: "the API key is invalid or revoked",
+  403: "the API key isn't allowed to send for this domain (wrong key, domain-restricted key, or the domain/account is disabled or unverified)",
+  404: "the domain isn't in this Mailgun account (or is in the EU region)",
+}
+
+function describeError(res: Response, raw: string, domain: string) {
+  let detail = raw.trim()
+  try {
+    const json = JSON.parse(raw)
+    detail = json.message ?? json.error ?? detail
+  } catch {}
+
+  const hint = STATUS_HINTS[res.status]
+  return [
+    `Mailgun ${res.status} ${res.statusText}`.trim(),
+    detail && `"${detail}"`,
+    `domain ${domain}`,
+    hint && `- ${hint}`,
+  ]
+    .filter(Boolean)
+    .join(" ")
+}
+
 export async function sendMailgunEmail(input: SendInput): Promise<SendResult> {
   const { campaign, contact } = input
   const { mailgunAccount, template } = campaign
@@ -78,12 +102,12 @@ export async function sendMailgunEmail(input: SendInput): Promise<SendResult> {
   )
 
   if (!res.ok) {
-    const errBody = await res.text().catch(() => "Unknown error")
+    const errBody = await res.text().catch(() => "")
     const retryAfter = res.headers.get("retry-after")
     return {
       sent: false,
       status: res.status,
-      body: errBody,
+      body: describeError(res, errBody, mailgunAccount.domain),
       retryAfter: retryAfter
         ? parseInt(retryAfter, 10) || undefined
         : undefined,
