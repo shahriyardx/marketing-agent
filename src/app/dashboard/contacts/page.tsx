@@ -86,7 +86,7 @@ export default function ContactsPage() {
 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [search, setSearch] = useState("")
-  // "all" | "none" (never sent) | campaign id
+  // "all" | "none" (never sent) | "sent" (any campaign) | campaign id
   const [campaignFilter, setCampaignFilter] = useState("all")
   const [sendTarget, setSendTarget] = useState<{
     contactIds: string[]
@@ -678,7 +678,8 @@ export default function ContactsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All campaigns</SelectItem>
-                <SelectItem value="none">Never sent</SelectItem>
+                <SelectItem value="none">No campaign sent</SelectItem>
+                <SelectItem value="sent">Any campaign sent</SelectItem>
                 {campaigns.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     Last sent: {c.name}
