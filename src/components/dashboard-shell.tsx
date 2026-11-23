@@ -1,6 +1,7 @@
 "use client"
 
 import { AppSidebar } from "@/components/app-sidebar"
+import { BackgroundJobs } from "@/components/background-jobs"
 import {
   SidebarInset,
   SidebarProvider,
@@ -19,6 +20,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4">{children}</div>
       </SidebarInset>
+      <BackgroundJobs />
     </SidebarProvider>
   )
 }

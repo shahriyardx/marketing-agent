@@ -1,15 +1,39 @@
 import { z } from "zod"
+import { buildContactWhere } from "@/lib/contact-filter"
 import { protectedProcedure, router } from "../init"
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 export const contactsRouter = router({
-  getAll: protectedProcedure.query(({ ctx }) => {
-    return ctx.prisma.contact.findMany({
-      orderBy: { createdAt: "desc" },
-      include: {
-        lastCampaignSent: { select: { name: true, color: true } },
-      },
-    })
-  }),
+  // Paginated + filtered on the DB so the browser never holds the full list.
+  list: protectedProcedure
+    .input(
+      z.object({
+        page: z.number().int().min(0).default(0),
+        pageSize: z.number().int().min(1).max(5000).default(50),
+        search: z.string().default(""),
+        // "all" | "none" (never sent) | campaign id
+        campaignFilter: z.string().default("all"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const where = buildContactWhere(input.search, input.campaignFilter)
+
+      const [items, total] = await Promise.all([
+        ctx.prisma.contact.findMany({
+          where,
+          orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+          skip: input.page * input.pageSize,
+          take: input.pageSize,
+          include: {
+            lastCampaignSent: { select: { name: true, color: true } },
+          },
+        }),
+        ctx.prisma.contact.count({ where }),
+      ])
+
+      return { items, total }
+    }),
 
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
@@ -60,25 +84,49 @@ export const contactsRouter = router({
   importExcel: protectedProcedure
     .input(
       z.object({
-        contacts: z.array(
-          z.object({
-            firstName: z.string().min(1),
-            lastName: z.string().optional().default(""),
-            email: z.string().min(1, "Email is required"),
-            phone: z.string().optional().default(""),
-          }),
-        ),
+        // The client sends large lists in batches of ~2000.
+        contacts: z
+          .array(
+            z.object({
+              firstName: z.string().min(1),
+              lastName: z.string().optional().default(""),
+              email: z.string().min(1, "Email is required"),
+              phone: z.string().optional().default(""),
+            }),
+          )
+          .max(3000),
       }),
     )
-    .mutation(({ ctx, input }) => {
-      return ctx.prisma.contact.createMany({
-        data: input.contacts.map((c) => ({
+    .mutation(async ({ ctx, input }) => {
+      const byEmail = new Map<
+        string,
+        { firstName: string; lastName: string; email: string; phone: string | null }
+      >()
+      let invalid = 0
+      for (const c of input.contacts) {
+        const email = c.email.trim().toLowerCase()
+        if (!EMAIL_RE.test(email)) {
+          invalid++
+          continue
+        }
+        if (byEmail.has(email)) continue
+        byEmail.set(email, {
           firstName: c.firstName,
           lastName: c.lastName,
-          email: c.email,
+          email,
           phone: c.phone || null,
-        })),
+        })
+      }
+
+      const { count } = await ctx.prisma.contact.createMany({
+        data: [...byEmail.values()],
         skipDuplicates: true,
       })
+
+      return {
+        created: count,
+        invalid,
+        duplicates: input.contacts.length - invalid - count,
+      }
     }),
 })

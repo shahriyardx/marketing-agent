@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -54,6 +54,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
+const PAGE_SIZE = 50
+
 const schema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
@@ -88,6 +90,8 @@ export default function ContactsPage() {
   const [campaignFilter, setCampaignFilter] = useState("all")
   const [sendTarget, setSendTarget] = useState<{
     contactIds: string[]
+    // set => send to everyone matching the current search/filter
+    filter?: { search: string; campaignFilter: string }
     label: string
     campaignId: string
   } | null>(null)
@@ -98,69 +102,76 @@ export default function ContactsPage() {
 
   const [importOpen, setImportOpen] = useState(false)
   const [importFile, setImportFile] = useState<File | null>(null)
-  const [parsedContacts, setParsedContacts] = useState<
-    { firstName: string; lastName: string; email: string; phone: string }[]
-  >([])
-  const [parseError, setParseError] = useState("")
+  const [importing, setImporting] = useState(false)
+  const [importError, setImportError] = useState("")
+  const [page, setPage] = useState(0)
+  const [debouncedSearch, setDebouncedSearch] = useState("")
 
   const utils = trpc.useUtils()
-  const { data: contacts = [] } = trpc.contacts.getAll.useQuery()
+  const { data, isPending: contactsPending } = trpc.contacts.list.useQuery(
+    {
+      page,
+      pageSize: PAGE_SIZE,
+      search: debouncedSearch,
+      campaignFilter,
+    },
+    { placeholderData: (prev) => prev },
+  )
+  const filtered = data?.items ?? []
+  const total = data?.total ?? 0
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(t)
+  }, [search])
+
+  // New query -> back to the first page, selection no longer applies.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on filter change
+  useEffect(() => {
+    setPage(0)
+    setSelectedIds([])
+  }, [debouncedSearch, campaignFilter])
   const { data: campaigns = [] } = trpc.campaigns.getAll.useQuery()
-  const campaignSendMutation = trpc.campaigns.send.useMutation({
+  const campaignSendMutation = trpc.sends.start.useMutation({
     onSuccess: () => {
       setSelectedIds([])
-      utils.contacts.getAll.invalidate()
+      setSendTarget(null)
+      // the progress panel picks the job up straight away
+      utils.sends.list.invalidate()
     },
   })
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return contacts.filter((c) => {
-      if (campaignFilter === "none" && c.lastCampaignSentId) return false
-      if (
-        campaignFilter !== "all" &&
-        campaignFilter !== "none" &&
-        c.lastCampaignSentId !== campaignFilter
-      )
-        return false
-      if (!q) return true
-      return [`${c.firstName} ${c.lastName}`, c.email, c.phone ?? ""].some(
-        (v) => v.toLowerCase().includes(q),
-      )
-    })
-  }, [contacts, search, campaignFilter])
-
-  // Only act on selected rows that are still visible after filtering.
-  const visibleSelectedIds = filtered
-    .filter((c) => selectedIds.includes(c.id))
-    .map((c) => c.id)
+  const visibleSelectedIds = selectedIds
 
   function openSend(contactIds: string[], label: string) {
     campaignSendMutation.reset()
     setSendTarget({ contactIds, label, campaignId: "" })
   }
-  const importExcelMutation = trpc.contacts.importExcel.useMutation({
-    onSuccess: () => {
-      setImportOpen(false)
-      setImportFile(null)
-      setParsedContacts([])
-      utils.contacts.getAll.invalidate()
-    },
-  })
+
+  function openSendAllMatching() {
+    campaignSendMutation.reset()
+    setSendTarget({
+      contactIds: [],
+      filter: { search: debouncedSearch, campaignFilter },
+      label: `all ${total.toLocaleString()} matching contacts`,
+      campaignId: "",
+    })
+  }
   const updateMutation = trpc.contacts.update.useMutation({
     onSuccess: () => {
       setEditTarget(null)
-      utils.contacts.getAll.invalidate()
+      utils.contacts.list.invalidate()
     },
   })
   const deleteMutation = trpc.contacts.delete.useMutation({
-    onSuccess: () => utils.contacts.getAll.invalidate(),
+    onSuccess: () => utils.contacts.list.invalidate(),
   })
   const deleteManyMutation = trpc.contacts.deleteMany.useMutation({
     onSuccess: () => {
       setBatchDeleteTarget(null)
       setSelectedIds([])
-      utils.contacts.getAll.invalidate()
+      utils.contacts.list.invalidate()
     },
   })
 
@@ -183,142 +194,76 @@ export default function ContactsPage() {
     updateMutation.mutate({ id: editTarget.id, ...values })
   }
 
-  function parseContactRow(
-    firstName: string,
-    lastName: string,
-    email: string,
-    phone: string,
-  ) {
-    return { firstName, lastName, email, phone }
-  }
-
-  async function parseImportFile(file: File) {
-    setParseError("")
-
-    const { Workbook } = await import("exceljs")
-    const buf = await file.arrayBuffer()
-    const wb = await new Workbook().xlsx.load(buf)
-    const ws = wb.worksheets[0]
-    if (!ws) {
-      setParseError("File has no worksheets")
-      return
-    }
-
-    const rowCount = ws.rowCount
-    if (rowCount < 2) {
-      setParseError("Sheet must have a header row and at least one contact")
-      return
-    }
-
-    function cellText(v: unknown): string {
-      if (v && typeof v === "object" && "text" in v)
-        return String((v as { text: string }).text)
-      return String(v ?? "")
-    }
-
-    const headerRow = ws.getRow(1)
-    const headers = (headerRow.values as unknown[]).map((h) =>
-      cellText(h).toLowerCase().trim(),
-    )
-    const firstNameIdx = headers.findIndex(
-      (h) => h === "first name" || h === "firstname",
-    )
-    const lastNameIdx = headers.findIndex(
-      (h) => h === "last name" || h === "lastname",
-    )
-    const nameIdx = headers.findIndex((h) => h === "name" || h === "full name")
-    const emailIdx = headers.findIndex((h) => h === "email")
-    const phoneIdx = headers.findIndex((h) => h === "phone")
-
-    if (emailIdx === -1) {
-      setParseError('Spreadsheet must have an "Email" column')
-      return
-    }
-
-    if (firstNameIdx === -1 && nameIdx === -1) {
-      setParseError('Spreadsheet must have "Name" or "First Name" column')
-      return
-    }
-
-    const contacts: {
-      firstName: string
-      lastName: string
-      email: string
-      phone: string
-    }[] = []
-
-    for (let i = 2; i <= rowCount; i++) {
-      const vals = ws.getRow(i).values as unknown[]
-      const email = cellText(vals[emailIdx]).trim()
-      if (!email) continue
-
-      let firstName: string
-      let lastName: string
-      if (firstNameIdx !== -1) {
-        firstName = cellText(vals[firstNameIdx]).trim()
-        lastName = lastNameIdx !== -1 ? cellText(vals[lastNameIdx]).trim() : ""
-      } else {
-        const fullName = cellText(vals[nameIdx]).trim()
-        const spaceIdx = fullName.indexOf(" ")
-        firstName = spaceIdx === -1 ? fullName : fullName.slice(0, spaceIdx)
-        lastName = spaceIdx === -1 ? "" : fullName.slice(spaceIdx + 1)
+  // The server does the actual import in the background; we only upload the
+  // file. Progress shows in the global jobs panel.
+  async function handleImport() {
+    if (!importFile) return
+    setImporting(true)
+    setImportError("")
+    try {
+      const res = await fetch(
+        `/api/contacts/import?name=${encodeURIComponent(importFile.name)}`,
+        { method: "POST", body: importFile },
+      )
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        setImportError(body?.error ?? `Upload failed (${res.status})`)
+        return
       }
-      if (!firstName) continue
-
-      const phone = phoneIdx !== -1 ? cellText(vals[phoneIdx]).trim() : ""
-      contacts.push(parseContactRow(firstName, lastName, email, phone))
+      setImportOpen(false)
+      setImportFile(null)
+      utils.imports.list.invalidate()
+    } catch {
+      setImportError("Upload failed. Check your connection and try again.")
+    } finally {
+      setImporting(false)
     }
-
-    if (contacts.length === 0) {
-      setParseError("No valid contacts found")
-      return
-    }
-
-    setParsedContacts(contacts)
-  }
-
-  function handleImport() {
-    importExcelMutation.mutate({ contacts: parsedContacts })
   }
 
   async function handleExport() {
-    const { Workbook } = await import("exceljs")
-    const wb = new Workbook()
-    const ws = wb.addWorksheet("Contacts")
+    const csvCell = (v: string) =>
+      /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v
+    const line = (c: {
+      firstName: string
+      lastName: string
+      email: string
+      phone: string | null
+      createdAt: Date | string
+    }) =>
+      [
+        c.firstName,
+        c.lastName,
+        c.email,
+        c.phone ?? "",
+        new Date(c.createdAt).toLocaleDateString(),
+      ]
+        .map(csvCell)
+        .join(",")
 
-    const selected =
-      visibleSelectedIds.length > 0
-        ? filtered.filter((c) => visibleSelectedIds.includes(c.id))
-        : filtered
+    const parts: string[] = ["\uFEFFFirst Name,Last Name,Email,Phone,Date\n"]
 
-    ws.columns = [
-      { header: "First Name", key: "firstName", width: 20 },
-      { header: "Last Name", key: "lastName", width: 20 },
-      { header: "Email", key: "email", width: 35 },
-      { header: "Phone", key: "phone", width: 20 },
-      { header: "Date", key: "date", width: 15 },
-    ]
+    if (selectedIds.length > 0) {
+      for (const c of filtered) {
+        if (selectedIds.includes(c.id)) parts.push(`${line(c)}\n`)
+      }
+    } else {
+      // Pull the filtered list down in pages instead of all at once.
+      for (let p = 0; ; p++) {
+        const res = await utils.client.contacts.list.query({
+          page: p,
+          pageSize: 5000,
+          search: debouncedSearch,
+          campaignFilter,
+        })
+        for (const c of res.items) parts.push(`${line(c)}\n`)
+        if ((p + 1) * 5000 >= res.total) break
+      }
+    }
 
-    ws.addRows(
-      selected.map((c) => ({
-        firstName: c.firstName,
-        lastName: c.lastName,
-        email: c.email,
-        phone: c.phone || "",
-        date: new Date(c.createdAt).toLocaleDateString(),
-      })),
-    )
-
-    ws.getRow(1).font = { bold: true }
-
-    const buf = await wb.xlsx.writeBuffer()
-    const blob = new Blob([buf], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    })
-    const url = URL.createObjectURL(blob)
+    const url = URL.createObjectURL(new Blob(parts, { type: "text/csv" }))
     const a = document.createElement("a")
     a.href = url
-    a.download = "contacts.xlsx"
+    a.download = "contacts.csv"
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -380,13 +325,17 @@ export default function ContactsPage() {
               </Button>
             </>
           )}
+          {visibleSelectedIds.length === 0 && total > 0 && (
+            <Button variant="outline" onClick={openSendAllMatching}>
+              <SendIcon className="mr-2 h-4 w-4" />
+              Send all {total.toLocaleString()}
+            </Button>
+          )}
           <Button variant="outline" onClick={handleExport}>
             Export
             {visibleSelectedIds.length > 0
               ? ` ${visibleSelectedIds.length}`
-              : filtered.length !== contacts.length
-                ? ` ${filtered.length}`
-                : ""}
+              : ""}
           </Button>
           <Button onClick={() => setImportOpen(true)}>
             <Upload className="mr-2 h-4 w-4" />
@@ -544,11 +493,11 @@ export default function ContactsPage() {
       <Dialog
         open={importOpen}
         onOpenChange={(v) => {
+          if (importing) return
           setImportOpen(v)
           if (!v) {
             setImportFile(null)
-            setParsedContacts([])
-            setParseError("")
+            setImportError("")
           }
         }}
       >
@@ -556,51 +505,35 @@ export default function ContactsPage() {
           <DialogHeader>
             <DialogTitle>Import Contacts</DialogTitle>
             <DialogDescription>
-              Upload an Excel file with columns: Name, Email, Phone.
+              Upload a CSV or Excel file with columns: Name (or First Name / Last Name), Email, Phone. The import runs in the background, so you can keep working.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <Input
                 type="file"
-                accept=".xlsx"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0]
-                  if (file) {
-                    setImportFile(file)
-                    await parseImportFile(file)
-                  }
+                accept=".csv,.xlsx"
+                disabled={importing}
+                onChange={(e) => {
+                  setImportFile(e.target.files?.[0] ?? null)
+                  setImportError("")
                 }}
               />
             </div>
-            {parseError && (
-              <p className="text-xs text-destructive">{parseError}</p>
-            )}
-            {parsedContacts.length > 0 && (
-              <p className="text-sm text-muted-foreground">
-                {parsedContacts.length} contact
-                {parsedContacts.length !== 1 ? "s" : ""} ready to import.
-              </p>
-            )}
-            {importExcelMutation.error && (
-              <p className="text-xs text-destructive">
-                {importExcelMutation.error.message}
-              </p>
+            {importError && (
+              <p className="text-xs text-destructive">{importError}</p>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setImportOpen(false)}>
-              Cancel
-            </Button>
             <Button
-              onClick={handleImport}
-              disabled={
-                parsedContacts.length === 0 || importExcelMutation.isPending
-              }
+              variant="outline"
+              disabled={importing}
+              onClick={() => setImportOpen(false)}
             >
-              {importExcelMutation.isPending
-                ? "Importing…"
-                : `Import ${parsedContacts.length} Contact${parsedContacts.length !== 1 ? "s" : ""}`}
+              Close
+            </Button>
+            <Button onClick={handleImport} disabled={!importFile || importing}>
+              {importing ? "Uploading…" : "Import"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -620,7 +553,7 @@ export default function ContactsPage() {
               <span className="font-medium text-foreground">
                 {sendTarget?.label}
               </span>
-              .
+              . It runs in the background, so you can keep working.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -658,29 +591,6 @@ export default function ContactsPage() {
                 {campaignSendMutation.error.message}
               </p>
             )}
-            {campaignSendMutation.data && (
-              <div className="space-y-1 text-xs">
-                <p className="text-emerald-600">
-                  Sent to {campaignSendMutation.data.sent} contact
-                  {campaignSendMutation.data.sent !== 1 ? "s" : ""}.
-                </p>
-                {campaignSendMutation.data.failed.length > 0 && (
-                  <ul className="max-h-32 overflow-auto text-destructive">
-                    {campaignSendMutation.data.failed.map((f) => (
-                      <li key={f.email}>
-                        {f.email}: {f.error}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {campaignSendMutation.data.skipped > 0 && (
-                  <p className="text-muted-foreground">
-                    {campaignSendMutation.data.skipped} not sent (stopped after
-                    rate limit).
-                  </p>
-                )}
-              </div>
-            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSendTarget(null)}>
@@ -691,16 +601,16 @@ export default function ContactsPage() {
                 if (!sendTarget?.campaignId) return
                 campaignSendMutation.mutate({
                   campaignId: sendTarget.campaignId,
-                  contactIds: sendTarget.contactIds,
+                  ...(sendTarget.filter
+                    ? { filter: sendTarget.filter }
+                    : { contactIds: sendTarget.contactIds }),
                 })
               }}
               disabled={
-                !sendTarget?.campaignId ||
-                campaignSendMutation.isPending ||
-                campaignSendMutation.isSuccess
+                !sendTarget?.campaignId || campaignSendMutation.isPending
               }
             >
-              {campaignSendMutation.isPending ? "Sending…" : "Send"}
+              {campaignSendMutation.isPending ? "Starting…" : "Send"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -744,7 +654,7 @@ export default function ContactsPage() {
         </DialogContent>
       </Dialog>
 
-      {contacts.length === 0 ? (
+      {!contactsPending && total === 0 && !debouncedSearch && campaignFilter === "all" ? (
         <div className="rounded-none border p-8 text-center text-sm text-muted-foreground">
           No contacts yet. They will appear when your landing pages start
           collecting submissions.
@@ -777,7 +687,7 @@ export default function ContactsPage() {
               </SelectContent>
             </Select>
             <span className="text-xs text-muted-foreground">
-              {filtered.length} of {contacts.length}
+              {total.toLocaleString()} contact{total !== 1 ? "s" : ""}
               {visibleSelectedIds.length > 0 &&
                 ` · ${visibleSelectedIds.length} selected`}
             </span>
@@ -890,6 +800,35 @@ export default function ContactsPage() {
                 ))}
               </TableBody>
             </Table>
+          </div>
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>
+              Page {page + 1} of {pageCount.toLocaleString()}
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 0}
+                onClick={() => {
+                  setSelectedIds([])
+                  setPage((p) => p - 1)
+                }}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page + 1 >= pageCount}
+                onClick={() => {
+                  setSelectedIds([])
+                  setPage((p) => p + 1)
+                }}
+              >
+                Next
+              </Button>
+            </div>
           </div>
         </>
       )}

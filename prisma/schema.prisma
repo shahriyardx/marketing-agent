@@ -155,3 +155,47 @@ model Campaign {
 
   @@map("campaign")
 }
+
+model ImportJob {
+  id         String    @id @default(cuid())
+  fileName   String
+  // pending | running | done | failed
+  status     String    @default("pending")
+  bytesTotal Int       @default(0)
+  bytesRead  Int       @default(0)
+  rows       Int       @default(0)
+  created    Int       @default(0)
+  duplicates Int       @default(0)
+  invalid    Int       @default(0)
+  error      String?
+  dismissed  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  finishedAt DateTime?
+
+  @@map("import_job")
+}
+
+model SendJob {
+  id             String    @id @default(cuid())
+  campaignId     String
+  campaignName   String
+  // Either explicit ids, or a filter resolved page-by-page while running.
+  contactIds     String[]
+  search         String?
+  campaignFilter String?
+  total          Int       @default(0)
+  sent           Int       @default(0)
+  failed         Int       @default(0)
+  // running | done | failed | cancelled | rate_limited
+  status         String    @default("running")
+  error          String?
+  // first few failures: [{ email, error }]
+  errors         Json?
+  dismissed      Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  finishedAt     DateTime?
+
+  @@map("send_job")
+}
