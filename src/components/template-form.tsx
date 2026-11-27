@@ -2,23 +2,16 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useTheme } from "next-themes"
-import { Controller, useForm } from "react-hook-form"
+import { Controller, useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import Editor from "@monaco-editor/react"
+import Editor, { type BeforeMount } from "@monaco-editor/react"
 
-import { trpc } from "@/lib/trpc/client"
-import { Button } from "@/components/ui/button"
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { fillTemplateVars } from "@/lib/template-preview"
+import { PageBody, PageHeader } from "@/components/page-header"
+import { Button } from "@/components/ui/button"
+import { Field, FieldError, FieldLabel } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
 
 const schema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -28,6 +21,16 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
+const FORM_ID = "template-form"
+const VARIABLES = [
+  "name",
+  "first_name",
+  "last_name",
+  "email",
+  "phone",
+  "message",
+]
+
 const editorOptions = {
   minimap: { enabled: false },
   fontSize: 12,
@@ -36,154 +39,165 @@ const editorOptions = {
   scrollBeyondLastLine: false,
   wordWrap: "on" as const,
   padding: { top: 12, bottom: 12 },
-  glyphMargin: true,
   folding: true,
-  lineDecorationsWidth: 0,
-  lineNumbersMinChars: 0,
+  lineDecorationsWidth: 8,
+  lineNumbersMinChars: 3,
+  renderLineHighlight: "line" as const,
   autoClosingQuotes: "always" as const,
   autoClosingBrackets: "always" as const,
 }
 
+// Editor colours that match the app's dark theme.
+const defineTheme: BeforeMount = (monaco) => {
+  monaco.editor.defineTheme("midnight", {
+    base: "vs-dark",
+    inherit: true,
+    rules: [],
+    colors: {
+      "editor.background": "#11141b",
+      "editor.lineHighlightBackground": "#161a23",
+      "editor.lineHighlightBorder": "#00000000",
+      "editorLineNumber.foreground": "#4a5163",
+      "editorLineNumber.activeForeground": "#8b93a4",
+      "editorGutter.background": "#11141b",
+      "editor.selectionBackground": "#9b8cff40",
+      "editorCursor.foreground": "#9b8cff",
+    },
+  })
+}
+
 export function TemplateForm({
+  title,
   defaultValues,
   onSubmit,
   isPending,
   submitLabel,
 }: {
+  title: string
   defaultValues?: FormValues
   onSubmit: (values: FormValues) => void
   isPending: boolean
   submitLabel: string
 }) {
   const router = useRouter()
-  const { resolvedTheme } = useTheme()
-
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: defaultValues ?? { name: "", subject: "", html: "" },
   })
+  const html = useWatch({ control: form.control, name: "html" })
 
   useEffect(() => {
-    if (defaultValues) {
-      form.reset(defaultValues)
-    }
+    if (defaultValues) form.reset(defaultValues)
   }, [defaultValues, form])
+
+  const text = (
+    name: "name" | "subject",
+    label: string,
+    placeholder: string,
+  ) => (
+    <Controller
+      name={name}
+      control={form.control}
+      render={({ field, fieldState }) => (
+        <Field data-invalid={fieldState.invalid}>
+          <FieldLabel htmlFor={`tpl-${name}`}>{label}</FieldLabel>
+          <Input
+            {...field}
+            id={`tpl-${name}`}
+            placeholder={placeholder}
+            aria-invalid={fieldState.invalid}
+          />
+          {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+        </Field>
+      )}
+    />
+  )
 
   return (
     <>
-      <div className="rounded-none border bg-muted/30 px-4 py-3">
-        <p className="text-xs font-medium">Template Variables</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Use Handlebars variables like{" "}
-          <code className="rounded-none bg-muted px-1">{`{{name}}`}</code>,{" "}
-          <code className="rounded-none bg-muted px-1">{`{{email}}`}</code>,{" "}
-          <code className="rounded-none bg-muted px-1">{`{{first_name}}`}</code>
-          . Conditionals and helpers also supported.
-        </p>
-      </div>
+      <PageHeader title={title}>
+        <Button
+          variant="outline"
+          onClick={() => router.push("/dashboard/templates")}
+        >
+          Cancel
+        </Button>
+        <Button type="submit" form={FORM_ID} disabled={isPending}>
+          {isPending ? "Saving…" : submitLabel}
+        </Button>
+      </PageHeader>
+      <PageBody>
+        <form
+          id={FORM_ID}
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="flex flex-col gap-4"
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            {text("name", "Template name", "Welcome email")}
+            {text("subject", "Subject", "Welcome, {{first_name}}!")}
+          </div>
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FieldGroup>
-          <Controller
-            name="name"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="tpl-name">Template Name</FieldLabel>
-                <Input
-                  {...field}
-                  id="tpl-name"
-                  placeholder="Welcome Email"
-                  aria-invalid={fieldState.invalid}
-                />
-                {fieldState.invalid && (
-                  <FieldError errors={[fieldState.error]} />
+          <div className="grid gap-4 xl:grid-cols-2">
+            <section className="flex flex-col overflow-hidden rounded-xl border bg-card">
+              <div className="flex flex-wrap items-center gap-1.5 border-b px-3 py-2">
+                <span className="mr-1 font-heading text-sm font-semibold">
+                  HTML
+                </span>
+                {VARIABLES.map((v) => (
+                  <code
+                    key={v}
+                    className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
+                  >{`{{${v}}}`}</code>
+                ))}
+              </div>
+              <Controller
+                name="html"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <>
+                    <Editor
+                      height="calc(100dvh - 260px)"
+                      language="html"
+                      value={field.value}
+                      onChange={(v) => field.onChange(v ?? "")}
+                      beforeMount={defineTheme}
+                      theme="midnight"
+                      options={editorOptions}
+                    />
+                    {fieldState.invalid && (
+                      <div className="border-t px-3 py-2">
+                        <FieldError errors={[fieldState.error]} />
+                      </div>
+                    )}
+                  </>
                 )}
-              </Field>
-            )}
-          />
-          <Controller
-            name="subject"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="tpl-subject">Subject</FieldLabel>
-                <Input
-                  {...field}
-                  id="tpl-subject"
-                  placeholder="Welcome, {{name}}!"
-                  aria-invalid={fieldState.invalid}
-                />
-                {fieldState.invalid && (
-                  <FieldError errors={[fieldState.error]} />
-                )}
-              </Field>
-            )}
-          />
-          <Controller
-            name="html"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <Tabs defaultValue="html">
-                  <TabsList>
-                    <TabsTrigger value="html">HTML</TabsTrigger>
-                    <TabsTrigger value="preview">Preview</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="html">
-                    <div
-                      className={
-                        fieldState.invalid
-                          ? "overflow-hidden rounded-none border-2 border-destructive/50"
-                          : "overflow-hidden rounded-none border"
-                      }
-                    >
-                      <Editor
-                        height="400px"
-                        language="html"
-                        value={field.value}
-                        onChange={(v) => field.onChange(v ?? "")}
-                        theme={resolvedTheme === "dark" ? "vs-dark" : "vs"}
-                        options={editorOptions}
-                      />
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="preview">
-                    <div className="overflow-hidden rounded-none border bg-white">
-                      <iframe
-                        srcDoc={
-                          field.value
-                            ? fillTemplateVars(field.value)
-                            : "<p>Nothing to preview</p>"
-                        }
-                        title="Preview"
-                        className="w-full"
-                        style={{ height: 400, border: "none" }}
-                        sandbox=""
-                      />
-                    </div>
-                  </TabsContent>
-                </Tabs>
-                {fieldState.invalid && (
-                  <FieldError errors={[fieldState.error]} />
-                )}
-              </Field>
-            )}
-          />
-        </FieldGroup>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.push("/dashboard/templates")}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving…" : submitLabel}
-          </Button>
-        </div>
-      </form>
+              />
+            </section>
+
+            <section className="flex flex-col overflow-hidden rounded-xl border bg-card">
+              <div className="flex items-center border-b px-3 py-2">
+                <span className="font-heading text-sm font-semibold">
+                  Preview
+                </span>
+                <span className="ml-auto text-xs text-muted-foreground">
+                  Filled with sample data
+                </span>
+              </div>
+              <iframe
+                srcDoc={
+                  html
+                    ? fillTemplateVars(html)
+                    : "<p style='font-family:sans-serif;color:#888;padding:16px'>Start typing HTML to see a preview.</p>"
+                }
+                title="Email preview"
+                className="w-full bg-white"
+                style={{ height: "calc(100dvh - 260px)", border: "none" }}
+                sandbox=""
+              />
+            </section>
+          </div>
+        </form>
+      </PageBody>
     </>
   )
 }

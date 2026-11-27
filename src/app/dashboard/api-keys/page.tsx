@@ -4,9 +4,11 @@ import { useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { CopyIcon, PlusIcon } from "lucide-react"
+import { CopyIcon, PlusIcon, Trash2Icon } from "lucide-react"
 
+import { PageBody, PageHeader } from "@/components/page-header"
 import { trpc } from "@/lib/trpc/client"
+import { timeAgo } from "../contacts/status"
 import { ApiDocs } from "./api-docs"
 import { Button } from "@/components/ui/button"
 import {
@@ -78,15 +80,7 @@ export default function ApiKeysPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">
-            API Keys
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Manage keys for programmatic access to the API.
-          </p>
-        </div>
+      <PageHeader title="API &amp; WordPress">
         <Dialog
           open={open}
           onOpenChange={(v) => {
@@ -110,12 +104,12 @@ export default function ApiKeysPage() {
 
             {newKey ? (
               <div className="space-y-4">
-                <div className="rounded-none border border-primary/30 bg-primary/5 p-4">
+                <div className="rounded-xl border bg-card border-primary/30 bg-primary/5 p-4">
                   <p className="mb-2 text-xs font-medium">
                     Copy your key now. You won&apos;t be able to see it again.
                   </p>
                   <div className="flex items-center gap-2">
-                    <code className="flex-1 break-all rounded-none bg-muted px-2 py-1.5 font-mono text-xs">
+                    <code className="flex-1 break-all rounded-lg bg-muted px-2 py-1.5 font-mono text-xs">
                       {newKey}
                     </code>
                     <Button
@@ -165,101 +159,95 @@ export default function ApiKeysPage() {
             )}
           </DialogContent>
         </Dialog>
-      </div>
+      </PageHeader>
+      <PageBody>
+        <Dialog
+          open={!!deleteTarget}
+          onOpenChange={(v) => {
+            if (!v) setDeleteTarget(null)
+          }}
+        >
+          <DialogContent showCloseButton={false}>
+            <DialogHeader>
+              <DialogTitle>Delete API Key</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete{" "}
+                <span className="font-medium text-foreground">
+                  {deleteTarget?.name}
+                </span>
+                ? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={deleteMutation.isPending}
+                onClick={() => {
+                  if (!deleteTarget) return
+                  deleteMutation.mutate({ id: deleteTarget.id })
+                  setDeleteTarget(null)
+                }}
+              >
+                {deleteMutation.isPending ? "Deleting…" : "Delete"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      <div className="rounded-none border bg-muted/30 px-4 py-3">
-        <p className="text-xs font-medium">Usage</p>
-        <code className="mt-1 block text-xs text-muted-foreground">
-          Authorization: Bearer &lt;api_key&gt;
-        </code>
-      </div>
-
-      <Dialog
-        open={!!deleteTarget}
-        onOpenChange={(v) => {
-          if (!v) setDeleteTarget(null)
-        }}
-      >
-        <DialogContent showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>Delete API Key</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete{" "}
-              <span className="font-medium text-foreground">
-                {deleteTarget?.name}
-              </span>
-              ? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={deleteMutation.isPending}
-              onClick={() => {
-                if (!deleteTarget) return
-                deleteMutation.mutate({ id: deleteTarget.id })
-                setDeleteTarget(null)
-              }}
-            >
-              {deleteMutation.isPending ? "Deleting…" : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {keys.length === 0 ? (
-        <div className="rounded-none border p-8 text-center text-sm text-muted-foreground">
-          No API keys yet. Create one to get started.
-        </div>
-      ) : (
-        <div className="rounded-none border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Key</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Last Used</TableHead>
-                <TableHead className="w-0" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {keys.map((key) => (
-                <TableRow key={key.id}>
-                  <TableCell className="font-medium">{key.name}</TableCell>
-                  <TableCell className="font-mono text-muted-foreground">
-                    {key.prefix}…
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {new Date(key.createdAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {key.lastUsedAt
-                      ? new Date(key.lastUsedAt).toLocaleDateString()
-                      : "—"}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="destructive"
-                      size="xs"
-                      onClick={() =>
-                        setDeleteTarget({ id: key.id, name: key.name })
-                      }
-                    >
-                      Delete
-                    </Button>
-                  </TableCell>
+        {keys.length === 0 ? (
+          <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
+            No API keys yet. Create one to get started.
+          </div>
+        ) : (
+          <div className="rounded-xl border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Key</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Last Used</TableHead>
+                  <TableHead className="w-0" />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+              </TableHeader>
+              <TableBody>
+                {keys.map((key) => (
+                  <TableRow key={key.id}>
+                    <TableCell className="font-medium">{key.name}</TableCell>
+                    <TableCell className="font-mono text-muted-foreground">
+                      {key.prefix}…
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {timeAgo(key.createdAt)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {key.lastUsedAt ? timeAgo(key.lastUsedAt) : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Delete ${key.name}`}
+                        className="hover:text-destructive"
+                        onClick={() =>
+                          setDeleteTarget({ id: key.id, name: key.name })
+                        }
+                      >
+                        <Trash2Icon />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
 
-      <ApiDocs />
+        <ApiDocs />
+      </PageBody>
     </>
   )
 }

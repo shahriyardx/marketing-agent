@@ -10,8 +10,8 @@ function ThemeProvider({
   return (
     <NextThemesProvider
       attribute="class"
-      defaultTheme="system"
-      enableSystem
+      // The dashboard is designed dark-only.
+      forcedTheme="dark"
       disableTransitionOnChange
       {...props}
     >

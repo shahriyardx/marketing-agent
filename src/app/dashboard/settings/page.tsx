@@ -1,6 +1,7 @@
 "use client"
 
 import { trpc } from "@/lib/trpc/client"
+import { PageBody, PageHeader } from "@/components/page-header"
 import { Switch } from "@/components/ui/switch"
 
 export default function SettingsPage() {
@@ -13,27 +14,30 @@ export default function SettingsPage() {
 
   return (
     <>
-      <div>
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">
-          Settings
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Manage application settings.
-        </p>
-      </div>
-
-      <div className="flex items-center justify-between rounded-none border p-4">
-        <div>
-          <h2 className="text-sm font-medium">Registration</h2>
-          <p className="text-xs text-muted-foreground">
-            Allow new users to create accounts.
-          </p>
-        </div>
-        <Switch
-          checked={registrationEnabled}
-          onCheckedChange={(checked) => mutation.mutate({ enabled: checked })}
-        />
-      </div>
+      <PageHeader title="Settings" />
+      <PageBody>
+        <section className="max-w-3xl overflow-hidden rounded-xl border bg-card">
+          <h2 className="border-b px-4 py-3 font-heading text-sm font-semibold">
+            Access
+          </h2>
+          <div className="flex items-center gap-4 px-4 py-3.5">
+            <div className="flex-1">
+              <p className="font-medium">Allow sign-ups</p>
+              <p className="text-muted-foreground">
+                Anyone with the link can create an account. Turn off once your
+                team has joined.
+              </p>
+            </div>
+            <Switch
+              aria-label={"Allow sign-ups"}
+              checked={registrationEnabled}
+              onCheckedChange={(checked) =>
+                mutation.mutate({ enabled: checked })
+              }
+            />
+          </div>
+        </section>
+      </PageBody>
     </>
   )
 }

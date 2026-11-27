@@ -1,7 +1,6 @@
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
-import { buildContactWhere } from "@/lib/contact-filter"
-import { runSendJob } from "@/lib/send-job"
+import { prepareSend, runSendJob, SendError } from "@/lib/send-job"
 import { protectedProcedure, router } from "../init"
 
 // A running job that hasn't written progress in this long was killed
@@ -16,67 +15,64 @@ export const sendsRouter = router({
         // Either explicit ids, or a filter meaning "everyone matching".
         contactIds: z.array(z.string()).max(50000).optional(),
         filter: z
-          .object({ search: z.string(), campaignFilter: z.string() })
+          .object({
+            search: z.string(),
+            campaignFilter: z.string(),
+            listId: z.string().nullish(),
+          })
           .optional(),
+        skipAlreadySent: z.boolean().default(true),
+        // omitted => send now
+        scheduledAt: z.date().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       if (!input.contactIds?.length && !input.filter)
         throw new TRPCError({ code: "BAD_REQUEST", message: "No contacts" })
 
-      const campaign = await ctx.prisma.campaign.findUnique({
-        where: { id: input.campaignId },
-        include: { mailgunAccount: true, template: true },
-      })
-      if (!campaign)
-        throw new TRPCError({ code: "NOT_FOUND", message: "Campaign not found" })
-      if (!campaign.template)
+      if (
+        input.scheduledAt &&
+        input.scheduledAt.getTime() < Date.now() - 60_000
+      )
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Campaign has no template",
-        })
-      if (!campaign.mailgunAccount)
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Campaign has no Mailgun account",
-        })
-      if (!campaign.mailgunAccount.enabled)
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Mailgun account is disabled",
-        })
-      if (campaign.rateLimitedUntil && campaign.rateLimitedUntil > new Date())
-        throw new TRPCError({
-          code: "TOO_MANY_REQUESTS",
-          message: `Campaign is rate limited until ${campaign.rateLimitedUntil.toISOString()}. Try again later.`,
+          message: "Pick a time in the future",
         })
 
-      const total = input.contactIds?.length
-        ? await ctx.prisma.contact.count({
-            where: { id: { in: input.contactIds } },
-          })
-        : await ctx.prisma.contact.count({
-            where: buildContactWhere(
-              input.filter?.search ?? "",
-              input.filter?.campaignFilter ?? "all",
-            ),
-          })
-      if (total === 0)
-        throw new TRPCError({ code: "NOT_FOUND", message: "No contacts to send to" })
+      const recipients = {
+        campaignId: input.campaignId,
+        contactIds: input.contactIds ?? [],
+        search: input.filter?.search ?? null,
+        campaignFilter: input.filter?.campaignFilter ?? null,
+        listId: input.filter?.listId ?? null,
+        skipAlreadySent: input.skipAlreadySent,
+      }
+      // Checked now so mistakes show up straight away; a scheduled send is
+      // checked again (and recounted) when it starts.
+      let prepared: Awaited<ReturnType<typeof prepareSend>>
+      try {
+        prepared = await prepareSend(recipients, input.scheduledAt)
+      } catch (e) {
+        if (e instanceof SendError)
+          throw new TRPCError({ code: "BAD_REQUEST", message: e.message })
+        throw e
+      }
+      const { campaign, total } = prepared
 
       const job = await ctx.prisma.sendJob.create({
         data: {
-          campaignId: campaign.id,
+          ...recipients,
           campaignName: campaign.name,
-          contactIds: input.contactIds ?? [],
-          search: input.filter?.search ?? null,
-          campaignFilter: input.filter?.campaignFilter ?? null,
           total,
+          ...(input.scheduledAt
+            ? { status: "scheduled", scheduledAt: input.scheduledAt }
+            : {}),
         },
       })
 
-      // Runs in the background; progress is polled via `list`.
-      void runSendJob(job.id)
+      // Runs in the background; progress is polled via `list`. Scheduled
+      // jobs are started by send-scheduler.ts.
+      if (!input.scheduledAt) void runSendJob(job.id)
       return { jobId: job.id, total }
     }),
 
@@ -93,14 +89,21 @@ export const sendsRouter = router({
       },
     })
 
-    const jobs = await ctx.prisma.sendJob.findMany({
-      where: { dismissed: false },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-      // contactIds can be huge; the UI doesn't need them
-      omit: { contactIds: true },
-    })
-    return jobs.map((j) => ({
+    // contactIds can be huge; the UI doesn't need them
+    const [scheduled, recent] = await Promise.all([
+      ctx.prisma.sendJob.findMany({
+        where: { status: "scheduled" },
+        orderBy: { scheduledAt: "asc" },
+        omit: { contactIds: true },
+      }),
+      ctx.prisma.sendJob.findMany({
+        where: { dismissed: false, status: { not: "scheduled" } },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        omit: { contactIds: true },
+      }),
+    ])
+    return [...scheduled, ...recent].map((j) => ({
       ...j,
       errors: (j.errors ?? []) as { email: string; error: string }[],
     }))
@@ -110,7 +113,7 @@ export const sendsRouter = router({
     .input(z.object({ id: z.string() }))
     .mutation(({ ctx, input }) =>
       ctx.prisma.sendJob.updateMany({
-        where: { id: input.id, status: "running" },
+        where: { id: input.id, status: { in: ["running", "scheduled"] } },
         data: { status: "cancelled", finishedAt: new Date() },
       }),
     ),

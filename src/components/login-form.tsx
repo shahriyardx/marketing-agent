@@ -49,7 +49,7 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
       {serverError && (
-        <div className="rounded-none border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
           {serverError}
         </div>
       )}

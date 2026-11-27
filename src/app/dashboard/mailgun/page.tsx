@@ -6,10 +6,10 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
 
+import { PageBody, PageHeader } from "@/components/page-header"
 import { trpc } from "@/lib/trpc/client"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   Field,
@@ -151,369 +150,440 @@ export default function MailgunPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between">
+      <PageHeader title="Sending domains">
+        <Button onClick={openCreate}>
+          <PlusIcon />
+          Add domain
+        </Button>
+      </PageHeader>
+      <PageBody>
+        {accounts.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-16 text-center">
+            <h2 className="font-heading text-base font-semibold">
+              No sending domains yet
+            </h2>
+            <p className="max-w-sm text-muted-foreground">
+              Add a Mailgun domain and its API key. Campaigns send through it.
+            </p>
+            <Button onClick={openCreate}>
+              <PlusIcon />
+              Add domain
+            </Button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border bg-card">
+            <table className="w-full min-w-[760px] text-[13px]">
+              <thead>
+                <tr className="border-b text-left text-[11px] tracking-wider text-muted-foreground uppercase">
+                  <th className="px-4 py-2.5 font-medium">Domain</th>
+                  <th className="px-3 py-2.5 font-medium">From</th>
+                  <th className="px-3 py-2.5 font-medium">API key</th>
+                  <th className="px-3 py-2.5 font-medium">Unsubscribe link</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Sent</th>
+                  <th className="px-3 py-2.5 font-medium">Status</th>
+                  <th className="w-24 px-3 py-2.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {accounts.map((account) => (
+                  <tr
+                    key={account.id}
+                    className="border-b border-border/60 last:border-0 hover:bg-muted/40"
+                  >
+                    <td className="px-4 py-3">
+                      <p className="font-medium">{account.domain}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {account.name}
+                      </p>
+                    </td>
+                    <td className="px-3 py-3 font-mono text-xs text-muted-foreground">
+                      {account.fromEmail || "noreply"}@{account.domain}
+                    </td>
+                    <td className="px-3 py-3 font-mono text-xs text-muted-foreground">
+                      ••••{account.apiKey.slice(-4)}
+                    </td>
+                    <td className="px-3 py-3">
+                      <UnsubscribeStatus id={account.id} />
+                    </td>
+                    <td className="px-3 py-3 text-right font-mono text-xs text-muted-foreground">
+                      {account.sentCount.toLocaleString()}
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                        <Switch
+                          aria-label={`Turn ${account.enabled ? "off" : "on"} ${account.domain}`}
+                          checked={account.enabled}
+                          onCheckedChange={(checked) => {
+                            if (!checked) {
+                              setDisableTarget({
+                                id: account.id,
+                                name: account.name,
+                              })
+                            } else {
+                              toggleMutation.mutate({
+                                id: account.id,
+                                enabled: true,
+                              })
+                            }
+                          }}
+                        />
+                        {account.enabled ? "On" : "Off"}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Edit ${account.domain}`}
+                          onClick={() => openEdit(account)}
+                        >
+                          <PencilIcon />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Delete ${account.domain}`}
+                          className="hover:text-destructive"
+                          onClick={() =>
+                            setDeleteTarget({
+                              id: account.id,
+                              name: account.name,
+                            })
+                          }
+                        >
+                          <Trash2Icon />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">
-            Mailgun Accounts
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Manage your Mailgun API keys for campaign delivery.
-          </p>
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {accounts.map((account) => (
-          <Card
-            key={account.id}
-            className={cn(!account.enabled && "opacity-50")}
+          <Dialog
+            open={!!disableTarget}
+            onOpenChange={(v) => {
+              if (!v) setDisableTarget(null)
+            }}
           >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle
-                className={cn(
-                  "text-xs font-medium",
-                  !account.enabled && "text-muted-foreground",
-                )}
-              >
-                {account.name}
-              </CardTitle>
-              <div className="flex items-center gap-1">
-                <Switch
-                  checked={account.enabled}
-                  onCheckedChange={(checked) => {
-                    if (!checked) {
-                      setDisableTarget({
-                        id: account.id,
-                        name: account.name,
-                      })
-                    } else {
-                      toggleMutation.mutate({
-                        id: account.id,
-                        enabled: true,
-                      })
-                    }
-                  }}
-                />
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  onClick={() => openEdit(account)}
-                >
-                  <PencilIcon />
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="icon-sm"
-                  onClick={() =>
-                    setDeleteTarget({ id: account.id, name: account.name })
-                  }
-                >
-                  <Trash2Icon />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-1 text-xs text-muted-foreground">
-                <p className="truncate font-mono">{account.apiKey}</p>
-                <p>{account.domain}</p>
-                <p>{account.sentCount} emails sent</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-
-        <Dialog
-          open={!!disableTarget}
-          onOpenChange={(v) => {
-            if (!v) setDisableTarget(null)
-          }}
-        >
-          <DialogContent showCloseButton={false}>
-            <DialogHeader>
-              <DialogTitle>Disable Mailgun Account</DialogTitle>
-              <DialogDescription>
-                Disabling{" "}
-                <span className="font-medium text-foreground">
-                  {disableTarget?.name}
-                </span>{" "}
-                will also disable all campaigns linked to it. Are you sure?
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDisableTarget(null)}>
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  if (!disableTarget) return
-                  toggleMutation.mutate({
-                    id: disableTarget.id,
-                    enabled: false,
-                  })
-                  setDisableTarget(null)
-                }}
-              >
-                Disable
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog
-          open={!!editTarget}
-          onOpenChange={(v) => {
-            if (!v) setEditTarget(null)
-          }}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit Mailgun Account</DialogTitle>
-              <DialogDescription>
-                Leave the API key empty to keep the current one.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={form.handleSubmit(onEdit)} className="space-y-4">
-              <FieldGroup>
-                <Controller
-                  name="name"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="edit-name">Account Name</FieldLabel>
-                      <Input
-                        {...field}
-                        id="edit-name"
-                        aria-invalid={fieldState.invalid}
-                      />
-                      {fieldState.invalid && (
-                        <FieldError errors={[fieldState.error]} />
-                      )}
-                    </Field>
-                  )}
-                />
-                <Controller
-                  name="apiKey"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="edit-key">API Key</FieldLabel>
-                      <Input
-                        {...field}
-                        id="edit-key"
-                        placeholder="Leave empty to keep current"
-                        aria-invalid={fieldState.invalid}
-                      />
-                      {fieldState.invalid && (
-                        <FieldError errors={[fieldState.error]} />
-                      )}
-                    </Field>
-                  )}
-                />
-                <Controller
-                  name="domain"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="edit-domain">Domain</FieldLabel>
-                      <Input
-                        {...field}
-                        id="edit-domain"
-                        aria-invalid={fieldState.invalid}
-                      />
-                      {fieldState.invalid && (
-                        <FieldError errors={[fieldState.error]} />
-                      )}
-                    </Field>
-                  )}
-                />
-                <Controller
-                  name="fromEmail"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="edit-from">From Email</FieldLabel>
-                      <Input
-                        {...field}
-                        id="edit-from"
-                        placeholder="noreply"
-                        aria-invalid={fieldState.invalid}
-                      />
-                      {fieldState.invalid && (
-                        <FieldError errors={[fieldState.error]} />
-                      )}
-                    </Field>
-                  )}
-                />
-              </FieldGroup>
+            <DialogContent showCloseButton={false}>
+              <DialogHeader>
+                <DialogTitle>Disable Mailgun Account</DialogTitle>
+                <DialogDescription>
+                  Disabling{" "}
+                  <span className="font-medium text-foreground">
+                    {disableTarget?.name}
+                  </span>{" "}
+                  will also disable all campaigns linked to it. Are you sure?
+                </DialogDescription>
+              </DialogHeader>
               <DialogFooter>
                 <Button
-                  type="button"
                   variant="outline"
-                  onClick={() => setEditTarget(null)}
+                  onClick={() => setDisableTarget(null)}
                 >
                   Cancel
                 </Button>
                 <Button
-                  type="submit"
-                  disabled={updateMutation.isPending}
+                  variant="destructive"
+                  onClick={() => {
+                    if (!disableTarget) return
+                    toggleMutation.mutate({
+                      id: disableTarget.id,
+                      enabled: false,
+                    })
+                    setDisableTarget(null)
+                  }}
                 >
-                  {updateMutation.isPending ? "Saving…" : "Save Changes"}
+                  Disable
                 </Button>
               </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
 
-        <Dialog
-          open={!!deleteTarget}
-          onOpenChange={(v) => {
-            if (!v) setDeleteTarget(null)
-          }}
-        >
-          <DialogContent showCloseButton={false}>
-            <DialogHeader>
-              <DialogTitle>Delete Mailgun Account</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to delete{" "}
-                <span className="font-medium text-foreground">
-                  {deleteTarget?.name}
-                </span>
-                ? All campaigns linked to this account will be disabled. This
-                action cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={deleteMutation.isPending}
-                onClick={() => {
-                  if (!deleteTarget) return
-                  deleteMutation.mutate({ id: deleteTarget.id })
-                  setDeleteTarget(null)
-                }}
-              >
-                {deleteMutation.isPending ? "Deleting…" : "Delete"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          <Dialog
+            open={!!editTarget}
+            onOpenChange={(v) => {
+              if (!v) setEditTarget(null)
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Mailgun Account</DialogTitle>
+                <DialogDescription>
+                  Leave the API key empty to keep the current one.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={form.handleSubmit(onEdit)} className="space-y-4">
+                <FieldGroup>
+                  <Controller
+                    name="name"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="edit-name">
+                          Account Name
+                        </FieldLabel>
+                        <Input
+                          {...field}
+                          id="edit-name"
+                          aria-invalid={fieldState.invalid}
+                        />
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="apiKey"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="edit-key">API Key</FieldLabel>
+                        <Input
+                          {...field}
+                          id="edit-key"
+                          placeholder="Leave empty to keep current"
+                          aria-invalid={fieldState.invalid}
+                        />
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="domain"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="edit-domain">Domain</FieldLabel>
+                        <Input
+                          {...field}
+                          id="edit-domain"
+                          aria-invalid={fieldState.invalid}
+                        />
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="fromEmail"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="edit-from">From Email</FieldLabel>
+                        <Input
+                          {...field}
+                          id="edit-from"
+                          placeholder="noreply"
+                          aria-invalid={fieldState.invalid}
+                        />
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                      </Field>
+                    )}
+                  />
+                </FieldGroup>
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEditTarget(null)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={updateMutation.isPending}>
+                    {updateMutation.isPending ? "Saving…" : "Save Changes"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
 
-        <Dialog
-          open={createOpen}
-          onOpenChange={(v) => {
-            setCreateOpen(v)
-            if (!v) form.reset()
-          }}
-        >
-          <DialogTrigger asChild>
-            <Card
-              className="flex cursor-pointer items-center justify-center border-2 border-dashed border-muted-foreground/25 bg-muted/30 p-8 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-muted/50 hover:text-primary dark:bg-muted/10 dark:hover:bg-muted/20"
-              onClick={openCreate}
-            >
-              <div className="flex flex-col items-center gap-2">
-                <PlusIcon className="size-5" />
-                <span className="text-xs font-medium">Add Mailgun Account</span>
-              </div>
-            </Card>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Mailgun Account</DialogTitle>
-              <DialogDescription>
-                Enter your Mailgun API credentials to enable campaign delivery.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={form.handleSubmit(onCreate)} className="space-y-4">
-              <FieldGroup>
-                <Controller
-                  name="name"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="mg-name">Account Name</FieldLabel>
-                      <Input
-                        {...field}
-                        id="mg-name"
-                        placeholder="Production"
-                        aria-invalid={fieldState.invalid}
-                      />
-                      {fieldState.invalid && (
-                        <FieldError errors={[fieldState.error]} />
-                      )}
-                    </Field>
-                  )}
-                />
-                <Controller
-                  name="apiKey"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="mg-key">API Key</FieldLabel>
-                      <Input
-                        {...field}
-                        id="mg-key"
-                        placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxx"
-                        aria-invalid={fieldState.invalid}
-                      />
-                      {fieldState.invalid && (
-                        <FieldError errors={[fieldState.error]} />
-                      )}
-                    </Field>
-                  )}
-                />
-                <Controller
-                  name="domain"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="mg-domain">Domain</FieldLabel>
-                      <Input
-                        {...field}
-                        id="mg-domain"
-                        placeholder="mg.example.com"
-                        aria-invalid={fieldState.invalid}
-                      />
-                      {fieldState.invalid && (
-                        <FieldError errors={[fieldState.error]} />
-                      )}
-                    </Field>
-                  )}
-                />
-                <Controller
-                  name="fromEmail"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="mg-from">From Email</FieldLabel>
-                      <Input
-                        {...field}
-                        id="mg-from"
-                        placeholder="noreply"
-                        aria-invalid={fieldState.invalid}
-                      />
-                      {fieldState.invalid && (
-                        <FieldError errors={[fieldState.error]} />
-                      )}
-                    </Field>
-                  )}
-                />
-              </FieldGroup>
+          <Dialog
+            open={!!deleteTarget}
+            onOpenChange={(v) => {
+              if (!v) setDeleteTarget(null)
+            }}
+          >
+            <DialogContent showCloseButton={false}>
+              <DialogHeader>
+                <DialogTitle>Delete Mailgun Account</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to delete{" "}
+                  <span className="font-medium text-foreground">
+                    {deleteTarget?.name}
+                  </span>
+                  ? All campaigns linked to this account will be disabled. This
+                  action cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
               <DialogFooter>
+                <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+                  Cancel
+                </Button>
                 <Button
-                  type="submit"
-                  disabled={createMutation.isPending}
+                  variant="destructive"
+                  disabled={deleteMutation.isPending}
+                  onClick={() => {
+                    if (!deleteTarget) return
+                    deleteMutation.mutate({ id: deleteTarget.id })
+                    setDeleteTarget(null)
+                  }}
                 >
-                  {createMutation.isPending ? "Verifying…" : "Add Account"}
+                  {deleteMutation.isPending ? "Deleting…" : "Delete"}
                 </Button>
               </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={createOpen}
+            onOpenChange={(v) => {
+              setCreateOpen(v)
+              if (!v) form.reset()
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Mailgun Account</DialogTitle>
+                <DialogDescription>
+                  Enter your Mailgun API credentials to enable campaign
+                  delivery.
+                </DialogDescription>
+              </DialogHeader>
+              <form
+                onSubmit={form.handleSubmit(onCreate)}
+                className="space-y-4"
+              >
+                <FieldGroup>
+                  <Controller
+                    name="name"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="mg-name">Account Name</FieldLabel>
+                        <Input
+                          {...field}
+                          id="mg-name"
+                          placeholder="Production"
+                          aria-invalid={fieldState.invalid}
+                        />
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="apiKey"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="mg-key">API Key</FieldLabel>
+                        <Input
+                          {...field}
+                          id="mg-key"
+                          placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxx"
+                          aria-invalid={fieldState.invalid}
+                        />
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="domain"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="mg-domain">Domain</FieldLabel>
+                        <Input
+                          {...field}
+                          id="mg-domain"
+                          placeholder="mg.example.com"
+                          aria-invalid={fieldState.invalid}
+                        />
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="fromEmail"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="mg-from">From Email</FieldLabel>
+                        <Input
+                          {...field}
+                          id="mg-from"
+                          placeholder="noreply"
+                          aria-invalid={fieldState.invalid}
+                        />
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                      </Field>
+                    )}
+                  />
+                </FieldGroup>
+                <DialogFooter>
+                  <Button type="submit" disabled={createMutation.isPending}>
+                    {createMutation.isPending ? "Verifying…" : "Add Account"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </PageBody>
     </>
+  )
+}
+
+// Mailgun only adds the unsubscribe link and one-click header when this is on.
+function UnsubscribeStatus({ id }: { id: string }) {
+  const utils = trpc.useUtils()
+  const { data } = trpc.mailgun.unsubscribeTracking.useQuery({ id })
+  const enable = trpc.mailgun.enableUnsubscribeTracking.useMutation({
+    onSuccess: () => utils.mailgun.unsubscribeTracking.invalidate({ id }),
+  })
+
+  const dot = (cls: string, text: string) => (
+    <span className="inline-flex items-center gap-1.5 text-xs">
+      <span className={cn("size-1.5 rounded-full", cls)} />
+      {text}
+    </span>
+  )
+  if (!data) return dot("bg-muted-foreground", "Checking…")
+  if (data.active === null) return dot("bg-muted-foreground", "Can't check")
+  if (data.active) return dot("bg-success", "On")
+  return (
+    <div className="flex items-center gap-2">
+      {dot("bg-destructive", "Off")}
+      <Button
+        size="xs"
+        variant="outline"
+        disabled={enable.isPending}
+        onClick={() => enable.mutate({ id })}
+      >
+        {enable.isPending ? "Turning on…" : "Turn on"}
+      </Button>
+      {enable.error && (
+        <p className="text-destructive">{enable.error.message}</p>
+      )}
+    </div>
   )
 }

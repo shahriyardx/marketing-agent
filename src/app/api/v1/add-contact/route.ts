@@ -3,6 +3,7 @@ import { z } from "zod"
 import { validateApiRequest } from "@/lib/api-auth"
 import { prisma } from "@/lib/prisma"
 import { sendMailgunEmail } from "@/lib/mailgun-send"
+import { checkSuppressed } from "@/lib/mailgun-suppressions"
 
 const schema = z.object({
   firstName: z.string().min(1),
@@ -73,6 +74,10 @@ async function sendCampaignToContact(contact: {
   phone: string | null
   message: string | null
 }) {
+  // Unsubscribed, bounced or marked as spam on any domain (e.g. deleted here
+  // and added again): don't send.
+  if (await checkSuppressed(contact.email)) return
+
   const campaigns = await prisma.campaign.findMany({
     where: {
       enabled: true,
@@ -118,6 +123,18 @@ async function sendCampaignToContact(contact: {
           mailgunAccount: campaign.mailgunAccount,
         },
         contact,
+      })
+
+      await prisma.emailSend.create({
+        data: {
+          contactId: contact.id,
+          campaignId: campaign.id,
+          campaignName: campaign.name,
+          domain: campaign.mailgunAccount.domain,
+          status: result.sent ? "sent" : "failed",
+          error: result.sent ? null : result.body,
+          messageId: result.sent ? result.messageId : null,
+        },
       })
 
       if (result.sent) {

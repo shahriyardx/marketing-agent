@@ -6,10 +6,10 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
 
+import { PageBody, PageHeader } from "@/components/page-header"
 import { trpc } from "@/lib/trpc/client"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -132,15 +132,7 @@ export default function CampaignsPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">
-            Campaigns
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Create and manage your email campaigns.
-          </p>
-        </div>
+      <PageHeader title="Campaigns">
         <Dialog
           open={createOpen}
           onOpenChange={(v) => {
@@ -249,224 +241,264 @@ export default function CampaignsPage() {
             </form>
           </DialogContent>
         </Dialog>
-      </div>
-
-      <Dialog
-        open={!!editTarget}
-        onOpenChange={(v) => {
-          if (!v) setEditTarget(null)
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Campaign</DialogTitle>
-            <DialogDescription>Update the campaign settings.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={form.handleSubmit(onEdit)} className="space-y-4">
-            <FieldGroup>
-              <Controller
-                name="name"
-                control={form.control as any}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="ec-name">Campaign Name</FieldLabel>
-                    <Input
-                      {...field}
-                      id="ec-name"
-                      aria-invalid={fieldState.invalid}
-                    />
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
-                  </Field>
-                )}
-              />
-              <Controller
-                name="templateId"
-                control={form.control as any}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="ec-template">Template</FieldLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a template" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {templates.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
-                  </Field>
-                )}
-              />
-              <Controller
-                name="mailgunAccountId"
-                control={form.control as any}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="ec-mailgun">
-                      Mailgun Account
-                    </FieldLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an account" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {mailgunAccounts
-                          .filter((a) => a.enabled)
-                          .map((a) => (
-                            <SelectItem key={a.id} value={a.id}>
-                              {a.name}
+      </PageHeader>
+      <PageBody>
+        <Dialog
+          open={!!editTarget}
+          onOpenChange={(v) => {
+            if (!v) setEditTarget(null)
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Campaign</DialogTitle>
+              <DialogDescription>
+                Update the campaign settings.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={form.handleSubmit(onEdit)} className="space-y-4">
+              <FieldGroup>
+                <Controller
+                  name="name"
+                  control={form.control as any}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="ec-name">Campaign Name</FieldLabel>
+                      <Input
+                        {...field}
+                        id="ec-name"
+                        aria-invalid={fieldState.invalid}
+                      />
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
+                <Controller
+                  name="templateId"
+                  control={form.control as any}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="ec-template">Template</FieldLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a template" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {templates.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.name}
                             </SelectItem>
                           ))}
-                      </SelectContent>
-                    </Select>
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
-                  </Field>
-                )}
-              />
-              <ColorPicker control={form.control as any} name="color" />
-            </FieldGroup>
+                        </SelectContent>
+                      </Select>
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
+                <Controller
+                  name="mailgunAccountId"
+                  control={form.control as any}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="ec-mailgun">
+                        Mailgun Account
+                      </FieldLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an account" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {mailgunAccounts
+                            .filter((a) => a.enabled)
+                            .map((a) => (
+                              <SelectItem key={a.id} value={a.id}>
+                                {a.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
+                <ColorPicker control={form.control as any} name="color" />
+              </FieldGroup>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditTarget(null)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={updateMutation.isPending}>
+                  {updateMutation.isPending ? "Saving…" : "Save Changes"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={!!deleteTarget}
+          onOpenChange={(v) => {
+            if (!v) setDeleteTarget(null)
+          }}
+        >
+          <DialogContent showCloseButton={false}>
+            <DialogHeader>
+              <DialogTitle>Delete Campaign</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete{" "}
+                <span className="font-medium text-foreground">
+                  {deleteTarget?.name}
+                </span>
+                ? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setEditTarget(null)}
-              >
+              <Button variant="outline" onClick={() => setDeleteTarget(null)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={updateMutation.isPending}>
-                {updateMutation.isPending ? "Saving…" : "Save Changes"}
+              <Button
+                variant="destructive"
+                disabled={deleteMutation.isPending}
+                onClick={() => {
+                  if (!deleteTarget) return
+                  deleteMutation.mutate({ id: deleteTarget.id })
+                  setDeleteTarget(null)
+                }}
+              >
+                {deleteMutation.isPending ? "Deleting…" : "Delete"}
               </Button>
             </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
 
-      <Dialog
-        open={!!deleteTarget}
-        onOpenChange={(v) => {
-          if (!v) setDeleteTarget(null)
-        }}
-      >
-        <DialogContent showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>Delete Campaign</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete{" "}
-              <span className="font-medium text-foreground">
-                {deleteTarget?.name}
-              </span>
-              ? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-              Cancel
+        {campaigns.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-16 text-center">
+            <h2 className="font-heading text-base font-semibold">
+              No campaigns yet
+            </h2>
+            <p className="max-w-sm text-muted-foreground">
+              A campaign pairs a template with a sending domain. Create one,
+              then send it from Contacts.
+            </p>
+            <Button onClick={() => setCreateOpen(true)}>
+              <PlusIcon />
+              New campaign
             </Button>
-            <Button
-              variant="destructive"
-              disabled={deleteMutation.isPending}
-              onClick={() => {
-                if (!deleteTarget) return
-                deleteMutation.mutate({ id: deleteTarget.id })
-                setDeleteTarget(null)
-              }}
-            >
-              {deleteMutation.isPending ? "Deleting…" : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border bg-card">
+            <table className="w-full min-w-[720px] text-[13px]">
+              <thead>
+                <tr className="border-b text-left text-[11px] tracking-wider text-muted-foreground uppercase">
+                  <th className="px-4 py-2.5 font-medium">Name</th>
+                  <th className="px-3 py-2.5 font-medium">Template</th>
+                  <th className="px-3 py-2.5 font-medium">Sending domain</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Sent</th>
+                  <th className="px-3 py-2.5 font-medium">Status</th>
+                  <th className="w-24 px-3 py-2.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {campaigns.map((c) => {
+                  const missing: string[] = []
+                  if (!c.template) missing.push("No template")
+                  if (!c.mailgunAccount) missing.push("No sending domain")
+                  else if (!c.mailgunAccount.enabled)
+                    missing.push("Sending domain is off")
+                  const hasIssue = missing.length > 0
 
-      {campaigns.length === 0 ? (
-        <div className="rounded-none border p-8 text-center text-sm text-muted-foreground">
-          No campaigns yet. Create your first campaign to get started.
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {campaigns.map((c) => {
-            const missing: string[] = []
-            if (!c.template) missing.push("Template is missing")
-            if (!c.mailgunAccount) missing.push("Mailgun is missing")
-            else if (!c.mailgunAccount.enabled)
-              missing.push("Mailgun is disabled")
-            const hasIssue = missing.length > 0
-
-            return (
-              <Card
-                key={c.id}
-                className={cn(
-                  !c.enabled && "opacity-50",
-                  hasIssue && "border-yellow-600/50 dark:border-yellow-500/50",
-                )}
-                style={{ borderLeft: `3px solid ${c.color}` }}
-              >
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle
-                    className={cn(
-                      "text-xs font-medium",
-                      (!c.enabled || hasIssue) && "text-muted-foreground",
-                    )}
-                  >
-                    {c.name}
-                  </CardTitle>
-                  <div className="flex items-center gap-1">
-                    <Switch
-                      checked={c.enabled}
-                      disabled={hasIssue}
-                      onCheckedChange={(checked) =>
-                        toggleMutation.mutate({
-                          id: c.id,
-                          enabled: checked,
-                        })
-                      }
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon-sm"
-                      onClick={() => openEdit(c)}
+                  return (
+                    <tr
+                      key={c.id}
+                      className="border-b border-border/60 last:border-0 hover:bg-muted/40"
                     >
-                      <PencilIcon />
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="icon-sm"
-                      onClick={() =>
-                        setDeleteTarget({ id: c.id, name: c.name })
-                      }
-                    >
-                      <Trash2Icon />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {hasIssue ? (
-                    <div className="space-y-1 text-xs text-yellow-600 dark:text-yellow-500">
-                      {missing.map((m) => (
-                        <p key={m}>{m}</p>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="space-y-1 text-xs text-muted-foreground">
-                      <p>Template: {c.template?.name}</p>
-                      <p>Mailgun: {c.mailgunAccount?.name}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      )}
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-2.5 font-medium">
+                          <span
+                            className="size-2.5 shrink-0 rounded-[3px]"
+                            style={{ backgroundColor: c.color }}
+                          />
+                          {c.name}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 text-muted-foreground">
+                        {c.template?.name ?? "—"}
+                      </td>
+                      <td className="px-3 py-3 text-muted-foreground">
+                        {c.mailgunAccount?.name ?? "—"}
+                      </td>
+                      <td className="px-3 py-3 text-right font-mono text-xs text-muted-foreground">
+                        {c._count.sends.toLocaleString()}
+                      </td>
+                      <td className="px-3 py-3">
+                        {hasIssue ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-warning">
+                            <span className="size-1.5 rounded-full bg-warning" />
+                            {missing.join(" · ")}
+                          </span>
+                        ) : (
+                          <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                            <Switch
+                              aria-label={`${c.enabled ? "Pause" : "Activate"} ${c.name}`}
+                              checked={c.enabled}
+                              onCheckedChange={(checked) =>
+                                toggleMutation.mutate({
+                                  id: c.id,
+                                  enabled: checked,
+                                })
+                              }
+                            />
+                            {c.enabled ? "Active" : "Paused"}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Edit ${c.name}`}
+                            onClick={() => openEdit(c)}
+                          >
+                            <PencilIcon />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Delete ${c.name}`}
+                            className="hover:text-destructive"
+                            onClick={() =>
+                              setDeleteTarget({ id: c.id, name: c.name })
+                            }
+                          >
+                            <Trash2Icon />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </PageBody>
     </>
   )
 }

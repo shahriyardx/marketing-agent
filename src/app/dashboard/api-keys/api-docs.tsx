@@ -9,7 +9,7 @@ import { wordpressPluginPhp } from "@/lib/wordpress-plugin"
 function Code({ code }: { code: string }) {
   return (
     <div className="relative">
-      <pre className="overflow-x-auto border bg-muted/30 p-3 pr-12 font-mono text-xs">
+      <pre className="overflow-x-auto rounded-lg border bg-background p-3 pr-12 font-mono text-xs">
         {code}
       </pre>
       <Button
@@ -125,7 +125,7 @@ curl_close($ch);`
   -H "Authorization: Bearer YOUR_API_KEY"`
 
   return (
-    <section className="space-y-6 border p-6">
+    <section className="space-y-6 rounded-xl border bg-card p-6">
       <div>
         <h2 className="font-heading text-lg font-semibold tracking-tight">
           API Documentation
@@ -142,7 +142,7 @@ curl_close($ch);`
           request.
         </p>
         <Code code="Authorization: Bearer YOUR_API_KEY" />
-        <p className="border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+        <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs">
           Keep your API key secret. Call this API from your server only. Do not
           put the key in browser JavaScript or HTML, because anyone can read it
           there.
@@ -166,7 +166,7 @@ curl_close($ch);`
           Creates a contact. The app then sends one enabled campaign to the
           contact automatically.
         </p>
-        <div className="overflow-x-auto border">
+        <div className="overflow-x-auto rounded-lg border">
           <table className="w-full text-xs">
             <thead className="bg-muted/30 text-left">
               <tr>
@@ -194,7 +194,7 @@ curl_close($ch);`
 
       <div className="space-y-2">
         <h3 className="text-sm font-semibold">Responses</h3>
-        <div className="overflow-x-auto border">
+        <div className="overflow-x-auto rounded-lg border">
           <table className="w-full text-xs">
             <tbody>
               {RESPONSES.map(([status, note]) => (
@@ -240,7 +240,7 @@ curl_close($ch);`
           </li>
           <li className="space-y-2">
             <p>Set up your form fields:</p>
-            <div className="overflow-x-auto border">
+            <div className="overflow-x-auto rounded-lg border">
               <table className="w-full text-xs">
                 <tbody>
                   {WP_FIELDS.map(([plugin, note]) => (

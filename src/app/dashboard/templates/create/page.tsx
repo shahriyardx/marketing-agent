@@ -19,20 +19,11 @@ export default function CreateTemplatePage() {
   }
 
   return (
-    <>
-      <div>
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">
-          Create Template
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Build a new email template with HTML.
-        </p>
-      </div>
-      <TemplateForm
-        onSubmit={onSubmit}
-        isPending={createMutation.isPending}
-        submitLabel="Create Template"
-      />
-    </>
+    <TemplateForm
+      title="New template"
+      onSubmit={onSubmit}
+      isPending={createMutation.isPending}
+      submitLabel="Create template"
+    />
   )
 }

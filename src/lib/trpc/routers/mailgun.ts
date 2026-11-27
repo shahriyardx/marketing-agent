@@ -1,5 +1,9 @@
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
+import {
+  enableUnsubscribeTracking,
+  getUnsubscribeTracking,
+} from "@/lib/mailgun-suppressions"
 import { protectedProcedure, router } from "../init"
 
 function maskKey(key: string) {
@@ -31,8 +35,11 @@ async function assertKeyWorksForDomain(apiKey: string, domain: string) {
     404: `Domain ${domain} was not found for this API key (check the domain, and that the key is for the US region)`,
   }
   throw new TRPCError({
-    code: res.status === 401 || res.status === 403 ? "UNAUTHORIZED" : "BAD_REQUEST",
-    message: messages[res.status] ?? `Mailgun returned ${res.status} while verifying ${domain}`,
+    code:
+      res.status === 401 || res.status === 403 ? "UNAUTHORIZED" : "BAD_REQUEST",
+    message:
+      messages[res.status] ??
+      `Mailgun returned ${res.status} while verifying ${domain}`,
   })
 }
 
@@ -140,7 +147,10 @@ export const mailgunRouter = router({
       if (!existing)
         throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" })
 
-      await assertKeyWorksForDomain(input.apiKey || existing.apiKey, input.domain)
+      await assertKeyWorksForDomain(
+        input.apiKey || existing.apiKey,
+        input.domain,
+      )
 
       return ctx.prisma.mailgunAccount.update({
         where: { id: input.id },
@@ -167,5 +177,36 @@ export const mailgunRouter = router({
       return ctx.prisma.mailgunAccount.delete({
         where: { id: input.id },
       })
+    }),
+
+  // Whether Mailgun adds the unsubscribe link + one-click header for the domain.
+  unsubscribeTracking: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const account = await ctx.prisma.mailgunAccount.findUniqueOrThrow({
+        where: { id: input.id },
+      })
+      try {
+        return { active: await getUnsubscribeTracking(account) }
+      } catch {
+        return { active: null }
+      }
+    }),
+
+  enableUnsubscribeTracking: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const account = await ctx.prisma.mailgunAccount.findUniqueOrThrow({
+        where: { id: input.id },
+      })
+      try {
+        await enableUnsubscribeTracking(account)
+      } catch (e) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: e instanceof Error ? e.message : "Mailgun request failed",
+        })
+      }
+      return { active: true }
     }),
 })

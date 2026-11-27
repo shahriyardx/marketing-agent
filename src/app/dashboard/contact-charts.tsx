@@ -30,7 +30,7 @@ type Period = (typeof PERIODS)[number]["value"]
 const chartConfig = {
   contacts: {
     label: "Contacts",
-    color: "hsl(var(--primary))",
+    color: "var(--primary)",
   },
 } satisfies ChartConfig
 
@@ -60,7 +60,9 @@ export function ContactChart({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-sm font-medium">Contacts</CardTitle>
+        <CardTitle className="font-heading text-sm font-semibold">
+          New contacts
+        </CardTitle>
         <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
           <SelectTrigger className="w-40">
             <SelectValue />
@@ -76,16 +78,16 @@ export function ContactChart({
       </CardHeader>
       <CardContent>
         {!hasData ? (
-          <p className="py-8 text-center text-xs text-muted-foreground">
-            No contacts yet.
+          <p className="flex h-48 items-center justify-center text-muted-foreground">
+            No new contacts in this period.
           </p>
         ) : (
           <ChartContainer
             config={chartConfig}
-            className="aspect-auto h-75 w-full"
+            className="aspect-auto h-64 w-full"
           >
             <BarChart data={data} barCategoryGap={2}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <CartesianGrid vertical={false} stroke="var(--border)" />
               <XAxis
                 dataKey="name"
                 tickLine={false}
@@ -107,7 +109,7 @@ export function ContactChart({
               <Bar
                 dataKey="count"
                 fill="var(--color-contacts)"
-                radius={[2, 2, 0, 0]}
+                radius={[3, 3, 0, 0]}
               />
             </BarChart>
           </ChartContainer>

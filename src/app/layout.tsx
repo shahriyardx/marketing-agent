@@ -1,4 +1,4 @@
-import { Geist, JetBrains_Mono, Inter } from "next/font/google"
+import { Inter, Inter_Tight, JetBrains_Mono } from "next/font/google"
 import type { Metadata } from "next"
 
 import "./globals.css"
@@ -6,9 +6,12 @@ import { cn } from "@/lib/utils"
 import { APP_NAME } from "@/lib/constants"
 import { ClientProviders } from "@/components/client-providers"
 
-const interHeading = Inter({ subsets: ["latin"], variable: "--font-heading" })
+const fontHeading = Inter_Tight({
+  subsets: ["latin"],
+  variable: "--font-heading",
+})
 
-const fontSans = Geist({
+const fontSans = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
 })
@@ -37,9 +40,8 @@ export default function RootLayout({
       className={cn(
         "antialiased",
         fontSans.variable,
-        "font-mono",
         jetbrainsMono.variable,
-        interHeading.variable,
+        fontHeading.variable,
       )}
     >
       <body>

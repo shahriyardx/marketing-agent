@@ -6,6 +6,7 @@ export const campaignsRouter = router({
     return ctx.prisma.campaign.findMany({
       orderBy: { createdAt: "desc" },
       include: {
+        _count: { select: { sends: { where: { status: "sent" } } } },
         mailgunAccount: { select: { id: true, name: true, enabled: true } },
         template: { select: { id: true, name: true } },
       },

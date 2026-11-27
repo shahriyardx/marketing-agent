@@ -1,4 +1,5 @@
 import Handlebars from "handlebars"
+import { htmlToText } from "@/lib/html-to-text"
 
 type ContactData = {
   firstName: string
@@ -31,7 +32,7 @@ export type SendInput = {
 }
 
 export type SendResult =
-  | { sent: true }
+  | { sent: true; messageId: string | null }
   | { sent: false; status: number; body: string; retryAfter?: number }
 
 function renderVars(text: string, contact: ContactData) {
@@ -84,6 +85,7 @@ export async function sendMailgunEmail(input: SendInput): Promise<SendResult> {
     to: contact.email,
     subject,
     html,
+    text: htmlToText(html),
     "h:Reply-To": `contact@${mailgunAccount.domain}`,
   }
 
@@ -114,5 +116,7 @@ export async function sendMailgunEmail(input: SendInput): Promise<SendResult> {
     }
   }
 
-  return { sent: true }
+  // Mailgun answers {"id":"<...@domain>","message":"Queued. Thank you."}
+  const json = (await res.json().catch(() => ({}))) as { id?: string }
+  return { sent: true, messageId: json.id?.replace(/^<|>$/g, "") ?? null }
 }

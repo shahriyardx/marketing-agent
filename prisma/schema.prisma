@@ -132,6 +132,14 @@ model Contact {
   message            String?
   lastCampaignSentId String?
   lastCampaignSent   Campaign? @relation("SentCampaigns", fields: [lastCampaignSentId], references: [id], onDelete: SetNull)
+  // Set from Mailgun's per-domain lists (see src/lib/mailgun-suppressions.ts);
+  // any of these means the contact is never sent to again.
+  unsubscribedAt     DateTime?
+  bouncedAt          DateTime?
+  bounceReason       String?
+  complainedAt       DateTime?
+  sends              EmailSend[]
+  lists              ContactListMember[]
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -149,6 +157,7 @@ model Campaign {
   templateId        String?
   template          EmailTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
   sentTo            Contact[]       @relation("SentCampaigns")
+  sends             EmailSend[]
   rateLimitedUntil  DateTime?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
@@ -184,10 +193,15 @@ model SendJob {
   contactIds     String[]
   search         String?
   campaignFilter String?
+  listId         String?
   total          Int       @default(0)
   sent           Int       @default(0)
   failed         Int       @default(0)
-  // running | done | failed | cancelled | rate_limited
+  // leave out contacts who already got this campaign
+  skipAlreadySent Boolean   @default(true)
+  // set => waits until then (status "scheduled"), see send-scheduler.ts
+  scheduledAt    DateTime?
+  // scheduled | running | done | failed | cancelled | rate_limited
   status         String    @default("running")
   error          String?
   // first few failures: [{ email, error }]
@@ -197,5 +211,54 @@ model SendJob {
   updatedAt      DateTime  @updatedAt
   finishedAt     DateTime?
 
+  @@index([status, scheduledAt])
   @@map("send_job")
+}
+
+// One row per send attempt: the contact's history, and what "got campaign X"
+// filters and duplicate-skipping use.
+model EmailSend {
+  id           String    @id @default(cuid())
+  contactId    String
+  contact      Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  campaignId   String?
+  campaign     Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  // copied so history survives renaming or deleting the campaign/account
+  campaignName String
+  domain       String
+  // sent (Mailgun accepted it) | failed
+  status       String
+  error        String?
+  // Mailgun's message id (without < >), to match delivery events
+  messageId    String?
+  sendJobId    String?
+  createdAt    DateTime  @default(now())
+
+  @@index([contactId, createdAt])
+  @@index([campaignId, status])
+  @@index([messageId])
+  @@map("email_send")
+}
+
+// A hand-picked group of contacts to send campaigns to.
+model ContactList {
+  id        String              @id @default(cuid())
+  name      String
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  members   ContactListMember[]
+
+  @@map("contact_list")
+}
+
+model ContactListMember {
+  listId    String
+  list      ContactList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  addedAt   DateTime    @default(now())
+
+  @@id([listId, contactId])
+  @@index([contactId])
+  @@map("contact_list_member")
 }

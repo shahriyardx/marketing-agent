@@ -1,22 +1,14 @@
-import { auth } from "@/lib/auth"
+import { SENDABLE } from "@/lib/contact-filter"
 import { prisma } from "@/lib/prisma"
-import { headers } from "next/headers"
-import { MegaphoneIcon, UsersIcon, FileTextIcon, MailIcon } from "lucide-react"
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { cn } from "@/lib/utils"
+import { PageBody, PageHeader } from "@/components/page-header"
+import { Button } from "@/components/ui/button"
+import { timeAgo } from "./contacts/status"
 import { ContactChart } from "./contact-charts"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Dashboard",
+  title: "Overview",
 }
 
 function groupBy<T>(items: T[], keyFn: (item: T) => string): Map<string, T[]> {
@@ -37,11 +29,63 @@ function pad<N extends number>(n: N): `${N}` {
   return n.toString().padStart(2, "0") as unknown as `${N}`
 }
 
-export default async function DashboardPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  })
+function Stat({
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  label: string
+  value: string
+  hint: string
+  tone?: "good" | "bad"
+}) {
+  return (
+    <div className="flex flex-col gap-1 rounded-xl border bg-card px-4 py-3.5">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="font-heading text-2xl font-semibold tracking-tight">
+        {value}
+      </span>
+      <span
+        className={cn(
+          "text-xs text-muted-foreground",
+          tone === "good" && "text-success",
+          tone === "bad" && "text-destructive",
+        )}
+      >
+        {hint}
+      </span>
+    </div>
+  )
+}
 
+function Panel({
+  title,
+  href,
+  children,
+}: {
+  title: string
+  href?: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="flex flex-col overflow-hidden rounded-xl border bg-card">
+      <div className="flex h-11 items-center border-b px-4">
+        <h2 className="font-heading text-sm font-semibold">{title}</h2>
+        {href && (
+          <Button variant="ghost" size="sm" className="ml-auto" asChild>
+            <a href={href}>View all</a>
+          </Button>
+        )}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+const fmt = (n: number) => n.toLocaleString()
+
+export default async function DashboardPage() {
   const now = new Date()
   const startOfToday = new Date(
     now.getFullYear(),
@@ -52,30 +96,45 @@ export default async function DashboardPage() {
   const startOf30Days = new Date(startOfToday.getTime() - 30 * 86400000)
   const startOf12Months = new Date(now.getFullYear() - 1, now.getMonth(), 1)
 
+  const since30 = new Date(Date.now() - 30 * 86400000)
+  const since7 = new Date(Date.now() - 7 * 86400000)
   const [
-    campaignCount,
     contactCount,
-    templateCount,
-    mailgunCount,
+    sendableCount,
+    newThisWeek,
+    sent30,
+    failed30,
     recentContacts,
-    recentCampaigns,
+    recentSends,
+    scheduled,
     contactsToday,
     contacts7Days,
     contacts30Days,
     contacts12Months,
   ] = await Promise.all([
-    prisma.campaign.count(),
     prisma.contact.count(),
-    prisma.emailTemplate.count(),
-    prisma.mailgunAccount.count({ where: { enabled: true } }),
-    prisma.contact.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
-    prisma.campaign.findMany({
+    prisma.contact.count({ where: SENDABLE }),
+    prisma.contact.count({ where: { createdAt: { gte: since7 } } }),
+    prisma.emailSend.count({
+      where: { status: "sent", createdAt: { gte: since30 } },
+    }),
+    prisma.emailSend.count({
+      where: { status: "failed", createdAt: { gte: since30 } },
+    }),
+    prisma.contact.findMany({ orderBy: { createdAt: "desc" }, take: 6 }),
+    prisma.emailSend.findMany({
       orderBy: { createdAt: "desc" },
-      take: 5,
+      take: 6,
       include: {
-        template: { select: { name: true } },
-        mailgunAccount: { select: { name: true } },
+        contact: { select: { firstName: true, lastName: true } },
+        campaign: { select: { color: true } },
       },
+    }),
+    prisma.sendJob.findMany({
+      where: { status: "scheduled" },
+      orderBy: { scheduledAt: "asc" },
+      take: 4,
+      select: { id: true, campaignName: true, scheduledAt: true, total: true },
     }),
     prisma.contact.findMany({
       where: { createdAt: { gte: startOfToday } },
@@ -165,153 +224,158 @@ export default async function DashboardPage() {
     }
   })
 
+  const blocked = contactCount - sendableCount
+  const sendablePct = contactCount
+    ? Math.round((sendableCount / contactCount) * 1000) / 10
+    : 0
+  const failRate = sent30 + failed30 ? failed30 / (sent30 + failed30) : 0
+
   return (
     <>
-      <div>
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">
-          Welcome back{", "}
-          {session?.user.name ?? session?.user.email}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Here&apos;s an overview of your marketing platform.
-        </p>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <ContactChart
-            todayData={todayData}
-            day7Data={day7Data}
-            day30Data={day30DataFiltered}
-            monthData={monthData}
+      <PageHeader title="Overview">
+        <Button variant="outline" asChild>
+          <a href="/dashboard/contacts">Contacts</a>
+        </Button>
+        <Button variant="accent" asChild>
+          <a href="/dashboard/contacts">Send a campaign</a>
+        </Button>
+      </PageHeader>
+      <PageBody className="gap-5">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Stat
+            label="Contacts"
+            value={fmt(contactCount)}
+            hint={`+${fmt(newThisWeek)} in the last 7 days`}
+            tone={newThisWeek > 0 ? "good" : undefined}
+          />
+          <Stat
+            label="Can receive email"
+            value={`${sendablePct}%`}
+            hint={`${fmt(blocked)} unsubscribed, bounced or spam`}
+          />
+          <Stat
+            label="Emails sent · 30 days"
+            value={fmt(sent30)}
+            hint={sent30 ? "Accepted by Mailgun" : "Nothing sent yet"}
+          />
+          <Stat
+            label="Failed sends · 30 days"
+            value={fmt(failed30)}
+            hint={
+              failed30
+                ? `${(failRate * 100).toFixed(1)}% of attempts`
+                : "No failures"
+            }
+            tone={failed30 ? "bad" : "good"}
           />
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">
-                Campaigns
-              </CardTitle>
-              <MegaphoneIcon className="size-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold tracking-tight">
-                {campaignCount}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">
-                Contacts
-              </CardTitle>
-              <UsersIcon className="size-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold tracking-tight">
-                {contactCount}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">
-                Templates
-              </CardTitle>
-              <FileTextIcon className="size-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold tracking-tight">
-                {templateCount}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">
-                Mailgun Accounts
-              </CardTitle>
-              <MailIcon className="size-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold tracking-tight">
-                {mailgunCount}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Contacts</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <ContactChart
+          todayData={todayData}
+          day7Data={day7Data}
+          day30Data={day30DataFiltered}
+          monthData={monthData}
+        />
+
+        <div className="grid gap-4 xl:grid-cols-3">
+          <Panel title="Recent sends" href="/dashboard/contacts">
+            {recentSends.length === 0 ? (
+              <p className="px-4 py-6 text-muted-foreground">
+                No emails sent yet.
+              </p>
+            ) : (
+              <ol>
+                {recentSends.map((s) => (
+                  <li
+                    key={s.id}
+                    className="flex items-center gap-3 border-b border-border/60 px-4 py-2.5 last:border-0"
+                  >
+                    <span
+                      className={cn(
+                        "size-2 shrink-0 rounded-full",
+                        s.status === "sent" ? "bg-success" : "bg-warning",
+                      )}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">
+                        {s.contact.firstName} {s.contact.lastName}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {s.status === "sent" ? "" : "Failed · "}
+                        {s.campaignName}
+                      </p>
+                    </div>
+                    <time className="font-mono text-[11px] text-muted-foreground">
+                      {timeAgo(s.createdAt)}
+                    </time>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </Panel>
+
+          <Panel title="New contacts" href="/dashboard/contacts">
             {recentContacts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No contacts yet.</p>
+              <p className="px-4 py-6 text-muted-foreground">
+                No contacts yet.
+              </p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Date</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentContacts.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell className="font-medium">
+              <ol>
+                {recentContacts.map((c) => (
+                  <li
+                    key={c.id}
+                    className="flex items-center gap-3 border-b border-border/60 px-4 py-2.5 last:border-0"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">
                         {c.firstName} {c.lastName}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      </p>
+                      <p className="truncate font-mono text-xs text-muted-foreground">
                         {c.email}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {new Date(c.createdAt).toLocaleDateString()}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      </p>
+                    </div>
+                    <time className="font-mono text-[11px] text-muted-foreground">
+                      {timeAgo(c.createdAt)}
+                    </time>
+                  </li>
+                ))}
+              </ol>
             )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Campaigns</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {recentCampaigns.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No campaigns yet.</p>
+          </Panel>
+
+          <Panel title="Scheduled">
+            {scheduled.length === 0 ? (
+              <p className="px-4 py-6 text-muted-foreground">
+                Nothing scheduled. Schedule a send from Contacts.
+              </p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Template</TableHead>
-                    <TableHead>Mailgun</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentCampaigns.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell className="font-medium">{c.name}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {c.template?.name ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {c.mailgunAccount?.name ?? "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <ol>
+                {scheduled.map((j) => (
+                  <li
+                    key={j.id}
+                    className="flex items-center gap-3 border-b border-border/60 px-4 py-2.5 last:border-0"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{j.campaignName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        About {fmt(j.total)} contacts
+                      </p>
+                    </div>
+                    <time className="text-right font-mono text-[11px] text-muted-foreground">
+                      {j.scheduledAt?.toLocaleString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </time>
+                  </li>
+                ))}
+              </ol>
             )}
-          </CardContent>
-        </Card>
-      </div>
+          </Panel>
+        </div>
+      </PageBody>
     </>
   )
 }

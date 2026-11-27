@@ -1,5 +1,11 @@
 import { z } from "zod"
-import { buildContactWhere } from "@/lib/contact-filter"
+import {
+  BLOCKED_FILTERS,
+  buildContactWhere,
+  type ContactStatus,
+  STATUS_TABS,
+} from "@/lib/contact-filter"
+import { syncSuppressions } from "@/lib/mailgun-suppressions"
 import { protectedProcedure, router } from "../init"
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -14,10 +20,17 @@ export const contactsRouter = router({
         search: z.string().default(""),
         // "all" | "none" (never sent) | campaign id
         campaignFilter: z.string().default("all"),
+        listId: z.string().nullish(),
+        status: z.string().default("all"),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const where = buildContactWhere(input.search, input.campaignFilter)
+      const where = buildContactWhere(
+        input.search,
+        input.campaignFilter,
+        input.listId,
+        input.status,
+      )
 
       const [items, total] = await Promise.all([
         ctx.prisma.contact.findMany({
@@ -34,6 +47,59 @@ export const contactsRouter = router({
 
       return { items, total }
     }),
+
+  // Counts for the status tabs, under the current search / campaign / list.
+  statusCounts: protectedProcedure
+    .input(
+      z.object({
+        search: z.string().default(""),
+        campaignFilter: z.string().default("all"),
+        listId: z.string().nullish(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const counts = await Promise.all(
+        STATUS_TABS.map((t) =>
+          ctx.prisma.contact.count({
+            where: buildContactWhere(
+              input.search,
+              input.campaignFilter,
+              input.listId,
+              t.value,
+            ),
+          }),
+        ),
+      )
+      return Object.fromEntries(
+        STATUS_TABS.map((t, i) => [t.value, counts[i]]),
+      ) as Record<ContactStatus, number>
+    }),
+
+  // One contact with its lists, for the side panel.
+  detail: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(({ ctx, input }) =>
+      ctx.prisma.contact.findUnique({
+        where: { id: input.id },
+        include: {
+          lists: {
+            include: { list: { select: { id: true, name: true } } },
+          },
+        },
+      }),
+    ),
+
+  // Every send attempt for one contact, newest first.
+  history: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(({ ctx, input }) =>
+      ctx.prisma.emailSend.findMany({
+        where: { contactId: input.id },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+        include: { campaign: { select: { color: true } } },
+      }),
+    ),
 
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
@@ -74,12 +140,37 @@ export const contactsRouter = router({
     }),
 
   deleteMany: protectedProcedure
-    .input(z.object({ ids: z.array(z.string()) }))
+    .input(
+      z.union([
+        z.object({ ids: z.array(z.string()) }),
+        // every blocked contact of one kind (Mailgun keeps its own lists, so
+        // a re-imported address is marked again on the next sync)
+        z.object({
+          blocked: z.enum(
+            Object.keys(BLOCKED_FILTERS) as [keyof typeof BLOCKED_FILTERS],
+          ),
+          // the same search, campaign filter and list the page shows
+          search: z.string().default(""),
+          campaignFilter: z.string().default("all"),
+          listId: z.string().nullish(),
+        }),
+      ]),
+    )
     .mutation(({ ctx, input }) => {
       return ctx.prisma.contact.deleteMany({
-        where: { id: { in: input.ids } },
+        where:
+          "ids" in input
+            ? { id: { in: input.ids } }
+            : buildContactWhere(
+                input.search,
+                input.campaignFilter,
+                input.listId,
+                input.blocked,
+              ),
       })
     }),
+
+  syncBlocked: protectedProcedure.mutation(() => syncSuppressions()),
 
   importExcel: protectedProcedure
     .input(
@@ -100,7 +191,12 @@ export const contactsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const byEmail = new Map<
         string,
-        { firstName: string; lastName: string; email: string; phone: string | null }
+        {
+          firstName: string
+          lastName: string
+          email: string
+          phone: string | null
+        }
       >()
       let invalid = 0
       for (const c of input.contacts) {

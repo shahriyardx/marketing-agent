@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation"
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
 
 import { APP_NAME } from "@/lib/constants"
+import { PageBody, PageHeader } from "@/components/page-header"
 import { trpc } from "@/lib/trpc/client"
+import { timeAgo } from "../contacts/status"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -42,111 +44,105 @@ export default function TemplatesPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">
-            Templates
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Manage your email templates.
-          </p>
-        </div>
+      <PageHeader title="Templates">
         <Button onClick={() => router.push("/dashboard/templates/create")}>
           <PlusIcon />
           New Template
         </Button>
-      </div>
+      </PageHeader>
+      <PageBody>
+        <Dialog
+          open={!!deleteTarget}
+          onOpenChange={(v) => {
+            if (!v) setDeleteTarget(null)
+          }}
+        >
+          <DialogContent showCloseButton={false}>
+            <DialogHeader>
+              <DialogTitle>Delete Template</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete{" "}
+                <span className="font-medium text-foreground">
+                  {deleteTarget?.name}
+                </span>
+                ? All campaigns using this template will be disabled. This
+                action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={deleteMutation.isPending}
+                onClick={() => {
+                  if (!deleteTarget) return
+                  deleteMutation.mutate({ id: deleteTarget.id })
+                  setDeleteTarget(null)
+                }}
+              >
+                {deleteMutation.isPending ? "Deleting…" : "Delete"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      <Dialog
-        open={!!deleteTarget}
-        onOpenChange={(v) => {
-          if (!v) setDeleteTarget(null)
-        }}
-      >
-        <DialogContent showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>Delete Template</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete{" "}
-              <span className="font-medium text-foreground">
-                {deleteTarget?.name}
-              </span>
-              ? All campaigns using this template will be disabled. This action
-              cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={deleteMutation.isPending}
-              onClick={() => {
-                if (!deleteTarget) return
-                deleteMutation.mutate({ id: deleteTarget.id })
-                setDeleteTarget(null)
-              }}
-            >
-              {deleteMutation.isPending ? "Deleting…" : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {templates.length === 0 ? (
-        <div className="rounded-none border p-8 text-center text-sm text-muted-foreground">
-          No templates yet. Create one to get started.
-        </div>
-      ) : (
-        <div className="rounded-none border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Subject</TableHead>
-                <TableHead>Updated</TableHead>
-                <TableHead className="w-0" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {templates.map((t) => (
-                <TableRow key={t.id}>
-                  <TableCell className="font-medium">{t.name}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {t.subject}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {new Date(t.updatedAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        onClick={() =>
-                          router.push(`/dashboard/templates/${t.id}`)
-                        }
-                      >
-                        <PencilIcon />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="icon-sm"
-                        onClick={() =>
-                          setDeleteTarget({ id: t.id, name: t.name })
-                        }
-                      >
-                        <Trash2Icon />
-                      </Button>
-                    </div>
-                  </TableCell>
+        {templates.length === 0 ? (
+          <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
+            No templates yet. Create one to get started.
+          </div>
+        ) : (
+          <div className="rounded-xl border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Updated</TableHead>
+                  <TableHead className="w-0" />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+              </TableHeader>
+              <TableBody>
+                {templates.map((t) => (
+                  <TableRow key={t.id}>
+                    <TableCell className="font-medium">{t.name}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {t.subject}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {timeAgo(t.updatedAt)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() =>
+                            router.push(`/dashboard/templates/${t.id}`)
+                          }
+                        >
+                          <PencilIcon />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="hover:text-destructive"
+                          onClick={() =>
+                            setDeleteTarget({ id: t.id, name: t.name })
+                          }
+                        >
+                          <Trash2Icon />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </PageBody>
     </>
   )
 }
