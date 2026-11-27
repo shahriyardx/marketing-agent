@@ -83,7 +83,7 @@ export function BackgroundJobs() {
   if (importJobs.length === 0 && sendJobs.length === 0) return null
 
   return (
-    <div className="fixed bottom-4 left-[76px] z-50 flex w-80 max-w-[calc(100vw-6rem)] flex-col gap-2">
+    <div className="fixed bottom-4 left-[76px] z-50 flex w-80 max-w-[calc(100vw-6rem)] md:left-[236px] flex-col gap-2">
       {importJobs.map((j) => {
         const active = j.status === "running" || j.status === "pending"
         const pct =

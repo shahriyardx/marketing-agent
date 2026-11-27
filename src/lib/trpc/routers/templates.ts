@@ -1,5 +1,14 @@
+import { templateError } from "@/lib/template-check"
+import { TRPCError } from "@trpc/server"
 import { z } from "zod"
 import { protectedProcedure, router } from "../init"
+
+function assertValidTemplate(subject: string, html: string) {
+  const problem =
+    (templateError(subject) && `Subject: ${templateError(subject)}`) ||
+    (templateError(html) && `HTML: ${templateError(html)}`)
+  if (problem) throw new TRPCError({ code: "BAD_REQUEST", message: problem })
+}
 
 export const templatesRouter = router({
   getAll: protectedProcedure.query(({ ctx }) => {
@@ -32,6 +41,7 @@ export const templatesRouter = router({
       }),
     )
     .mutation(({ ctx, input }) => {
+      assertValidTemplate(input.subject, input.html)
       return ctx.prisma.emailTemplate.create({
         data: input,
       })
@@ -47,6 +57,7 @@ export const templatesRouter = router({
       }),
     )
     .mutation(({ ctx, input }) => {
+      assertValidTemplate(input.subject, input.html)
       return ctx.prisma.emailTemplate.update({
         where: { id: input.id },
         data: {

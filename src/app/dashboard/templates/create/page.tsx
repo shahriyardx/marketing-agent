@@ -23,6 +23,7 @@ export default function CreateTemplatePage() {
       title="New template"
       onSubmit={onSubmit}
       isPending={createMutation.isPending}
+      error={createMutation.error?.message}
       submitLabel="Create template"
     />
   )

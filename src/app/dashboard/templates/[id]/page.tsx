@@ -33,6 +33,7 @@ export default function EditTemplatePage() {
       }}
       onSubmit={onSubmit}
       isPending={updateMutation.isPending}
+      error={updateMutation.error?.message}
       submitLabel="Save changes"
     />
   )

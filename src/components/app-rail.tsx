@@ -59,17 +59,20 @@ function RailLink({
       <TooltipTrigger asChild>
         <a
           href={href}
-          aria-label={label}
           aria-current={active ? "page" : undefined}
           className={cn(
-            "flex size-9.5 items-center justify-center rounded-[9px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-            active && "bg-muted text-foreground ring-1 ring-border",
+            "flex h-9 items-center gap-3 rounded-lg px-2.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground max-md:w-9 max-md:justify-center max-md:px-0",
+            active && "bg-muted font-medium text-foreground",
           )}
         >
-          <Icon className="size-[18px]" />
+          <Icon className="size-[18px] shrink-0" />
+          <span className="truncate max-md:sr-only">{label}</span>
         </a>
       </TooltipTrigger>
-      <TooltipContent side="right">{label}</TooltipContent>
+      {/* labels are visible from md up; the tooltip is for the icon-only phone rail */}
+      <TooltipContent side="right" className="md:hidden">
+        {label}
+      </TooltipContent>
     </Tooltip>
   )
 }
@@ -93,14 +96,19 @@ export function AppRail() {
   return (
     <nav
       aria-label="Main"
-      className="sticky top-0 flex h-dvh w-[60px] shrink-0 flex-col items-center gap-1.5 border-r bg-background py-3.5"
+      className="sticky top-0 flex h-dvh w-[60px] shrink-0 flex-col gap-1 border-r bg-background px-3 py-3.5 max-md:items-center md:w-[220px]"
     >
       <a
         href="/dashboard"
         aria-label="Marketing Agent home"
-        className="mb-3.5 flex size-[30px] items-center justify-center rounded-lg bg-primary text-primary-foreground"
+        className="mb-4 flex items-center gap-2.5 px-1"
       >
-        <MailIcon className="size-4" strokeWidth={2.4} />
+        <span className="flex size-[30px] shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <MailIcon className="size-4" strokeWidth={2.4} />
+        </span>
+        <span className="truncate font-heading text-sm font-semibold max-md:sr-only">
+          Marketing Agent
+        </span>
       </a>
       {MAIN.map((item) => (
         <RailLink
@@ -110,6 +118,9 @@ export function AppRail() {
         />
       ))}
       <div className="flex-1" />
+      <p className="px-2.5 pb-1 text-[11px] font-medium tracking-wider text-muted-foreground uppercase max-md:hidden">
+        Setup
+      </p>
       {SETUP.map((item) => (
         <RailLink key={item.href} {...item} active={isActive(item.href)} />
       ))}
@@ -118,9 +129,17 @@ export function AppRail() {
           <button
             type="button"
             aria-label="Account"
-            className="mt-2 flex size-[30px] items-center justify-center rounded-full bg-accent text-[11px] font-medium text-foreground ring-offset-2 ring-offset-background hover:ring-1 hover:ring-border"
+            className="mt-2 flex items-center gap-2.5 rounded-lg border-t pt-3 text-left hover:text-foreground max-md:border-0 md:px-1"
           >
-            {initials}
+            <span className="flex size-[30px] shrink-0 items-center justify-center rounded-full bg-accent text-[11px] font-medium text-foreground">
+              {initials}
+            </span>
+            <span className="min-w-0 flex-1 max-md:sr-only">
+              <span className="block truncate font-medium">{name}</span>
+              <span className="block truncate text-xs text-muted-foreground">
+                {session?.user.email}
+              </span>
+            </span>
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent side="right" align="end" className="min-w-56">

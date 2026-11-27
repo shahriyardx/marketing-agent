@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import Editor, { type BeforeMount } from "@monaco-editor/react"
 
+import { templateError } from "@/lib/template-check"
 import { fillTemplateVars } from "@/lib/template-preview"
 import { PageBody, PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
@@ -72,8 +73,11 @@ export function TemplateForm({
   onSubmit,
   isPending,
   submitLabel,
+  error,
 }: {
   title: string
+  /** server error from saving, shown above the form */
+  error?: string
   defaultValues?: FormValues
   onSubmit: (values: FormValues) => void
   isPending: boolean
@@ -85,6 +89,7 @@ export function TemplateForm({
     defaultValues: defaultValues ?? { name: "", subject: "", html: "" },
   })
   const html = useWatch({ control: form.control, name: "html" })
+  const syntaxError = html ? templateError(html) : null
 
   useEffect(() => {
     if (defaultValues) form.reset(defaultValues)
@@ -132,6 +137,11 @@ export function TemplateForm({
           onSubmit={form.handleSubmit(onSubmit)}
           className="flex flex-col gap-4"
         >
+          {error && (
+            <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-destructive">
+              {error}
+            </p>
+          )}
           <div className="grid gap-4 md:grid-cols-2">
             {text("name", "Template name", "Welcome email")}
             {text("subject", "Subject", "Welcome, {{first_name}}!")}
@@ -149,6 +159,12 @@ export function TemplateForm({
                     className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
                   >{`{{${v}}}`}</code>
                 ))}
+                <code
+                  title="Unsubscribe link, filled in by Mailgun. Use as href."
+                  className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-[11px] text-primary"
+                >
+                  %unsubscribe_url%
+                </code>
               </div>
               <Controller
                 name="html"
@@ -164,9 +180,15 @@ export function TemplateForm({
                       theme="midnight"
                       options={editorOptions}
                     />
-                    {fieldState.invalid && (
+                    {(fieldState.invalid || syntaxError) && (
                       <div className="border-t px-3 py-2">
-                        <FieldError errors={[fieldState.error]} />
+                        {syntaxError ? (
+                          <p className="text-xs text-destructive">
+                            {syntaxError}
+                          </p>
+                        ) : (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
                       </div>
                     )}
                   </>
