@@ -9,7 +9,8 @@ import { CopyIcon, PlusIcon, Trash2Icon } from "lucide-react"
 import { PageBody, PageHeader } from "@/components/page-header"
 import { trpc } from "@/lib/trpc/client"
 import { timeAgo } from "../contacts/status"
-import { ApiDocs } from "./api-docs"
+import { DeveloperDocs, WordPressGuide } from "./api-docs"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -42,7 +43,14 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
+const TABS = [
+  { value: "keys", label: "API keys" },
+  { value: "wordpress", label: "WordPress" },
+  { value: "developers", label: "Developers" },
+] as const
+
 export default function ApiKeysPage() {
+  const [tab, setTab] = useState<(typeof TABS)[number]["value"]>("keys")
   const [open, setOpen] = useState(false)
   const [newKey, setNewKey] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -197,56 +205,95 @@ export default function ApiKeysPage() {
           </DialogContent>
         </Dialog>
 
-        {keys.length === 0 ? (
-          <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
-            No API keys yet. Create one to get started.
-          </div>
-        ) : (
-          <div className="rounded-xl border bg-card">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Key</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Last Used</TableHead>
-                  <TableHead className="w-0" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {keys.map((key) => (
-                  <TableRow key={key.id}>
-                    <TableCell className="font-medium">{key.name}</TableCell>
-                    <TableCell className="font-mono text-muted-foreground">
-                      {key.prefix}…
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {timeAgo(key.createdAt)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {key.lastUsedAt ? timeAgo(key.lastUsedAt) : "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Delete ${key.name}`}
-                        className="hover:text-destructive"
-                        onClick={() =>
-                          setDeleteTarget({ id: key.id, name: key.name })
-                        }
-                      >
-                        <Trash2Icon />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+        <div
+          role="tablist"
+          aria-label="Section"
+          className="flex gap-0.5 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--border)] [scrollbar-width:none]"
+        >
+          {TABS.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.value}
+              onClick={() => setTab(t.value)}
+              className={cn(
+                "border-b-2 border-transparent px-3 py-2.5 font-medium whitespace-nowrap text-muted-foreground hover:text-foreground",
+                tab === t.value && "border-primary text-foreground",
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
 
-        <ApiDocs />
+        {tab === "keys" &&
+          (keys.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-16 text-center">
+              <h2 className="font-heading text-base font-semibold">
+                No API keys yet
+              </h2>
+              <p className="max-w-sm text-muted-foreground">
+                A key lets your website or WordPress plugin add contacts.
+              </p>
+              <Button onClick={() => setOpen(true)}>
+                <PlusIcon />
+                New API key
+              </Button>
+            </div>
+          ) : (
+            <div className="rounded-xl border bg-card">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Key</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Last Used</TableHead>
+                    <TableHead className="w-0" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {keys.map((key) => (
+                    <TableRow key={key.id}>
+                      <TableCell className="font-medium">{key.name}</TableCell>
+                      <TableCell className="font-mono text-muted-foreground">
+                        {key.prefix}…
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {timeAgo(key.createdAt)}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {key.lastUsedAt ? timeAgo(key.lastUsedAt) : "—"}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Delete ${key.name}`}
+                          className="hover:text-destructive"
+                          onClick={() =>
+                            setDeleteTarget({ id: key.id, name: key.name })
+                          }
+                        >
+                          <Trash2Icon />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ))}
+        {tab === "wordpress" && (
+          <WordPressGuide
+            onCreateKey={() => {
+              setTab("keys")
+              setOpen(true)
+            }}
+          />
+        )}
+        {tab === "developers" && <DeveloperDocs />}
       </PageBody>
     </>
   )

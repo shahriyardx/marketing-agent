@@ -1,103 +1,227 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CopyIcon, DownloadIcon } from "lucide-react"
+import { CheckIcon, CopyIcon, DownloadIcon } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import { wordpressPluginPhp } from "@/lib/wordpress-plugin"
+import { Button } from "@/components/ui/button"
 
-function Code({ code }: { code: string }) {
+/** This app's address; read after mount so server and client HTML match. */
+function useOrigin() {
+  const [origin, setOrigin] = useState("https://your-domain.com")
+  useEffect(() => setOrigin(window.location.origin), [])
+  return origin
+}
+
+function CopyButton({ text, className }: { text: string; className?: string }) {
+  const [done, setDone] = useState(false)
   return (
-    <div className="relative">
-      <pre className="overflow-x-auto rounded-lg border bg-background p-3 pr-12 font-mono text-xs">
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label={done ? "Copied" : "Copy"}
+      className={className}
+      onClick={() => {
+        navigator.clipboard.writeText(text)
+        setDone(true)
+        setTimeout(() => setDone(false), 1500)
+      }}
+    >
+      {done ? <CheckIcon className="text-success" /> : <CopyIcon />}
+    </Button>
+  )
+}
+
+function Code({
+  code,
+  className,
+  bare,
+}: {
+  code: string
+  className?: string
+  /** no frame of its own, for use inside a card */
+  bare?: boolean
+}) {
+  return (
+    <div className={cn("relative", className)}>
+      <pre
+        className={cn(
+          "max-h-96 overflow-auto p-3 pr-12 font-mono text-xs leading-relaxed",
+          !bare && "rounded-lg border bg-background",
+        )}
+      >
         {code}
       </pre>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        className="absolute top-1.5 right-1.5"
-        aria-label="Copy"
-        onClick={() => navigator.clipboard.writeText(code)}
-      >
-        <CopyIcon />
-      </Button>
+      <CopyButton text={code} className="absolute top-1.5 right-1.5" />
     </div>
   )
 }
 
-const FIELDS = [
-  ["firstName", "string", "Yes", "Contact first name"],
-  ["lastName", "string", "Yes", "Contact last name"],
-  ["email", "string", "Yes", "Valid email. Must be unique."],
-  ["phone", "string", "No", "Phone number"],
-  ["message", "string", "No", "Free text, e.g. form message"],
-]
+function Fold({
+  title,
+  children,
+}: {
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <details className="group rounded-xl border bg-card">
+      <summary className="flex cursor-pointer list-none items-center px-4 py-3 font-medium select-none [&::-webkit-details-marker]:hidden">
+        {title}
+        <span className="ml-auto text-muted-foreground transition-transform group-open:rotate-90">
+          ›
+        </span>
+      </summary>
+      <div className="space-y-3 border-t px-4 py-4">{children}</div>
+    </details>
+  )
+}
 
-const WP_FIELDS = [
+// ------------------------------------------------------------- WordPress
+
+const WP_FORMS = [
+  ["WPForms", "Works as is"],
+  ["Gravity Forms", "Works as is"],
   [
     "Contact Form 7",
-    "Name your fields first-name, last-name (or one your-name), your-email, phone, your-message.",
+    "Name fields first-name, last-name (or your-name), your-email, phone, your-message",
   ],
   [
-    "WPForms",
-    "No setup. Uses the Name, Email, Phone and Paragraph Text fields.",
-  ],
-  [
-    "Elementor Pro Forms",
-    "In each field's Advanced tab, set ID to first_name, last_name (or one name), email, phone, message.",
-  ],
-  [
-    "Gravity Forms",
-    "No setup. Uses the Name, Email, Phone and Paragraph Text fields.",
+    "Elementor Pro",
+    "Set each field's ID to first_name, last_name (or name), email, phone, message",
   ],
 ]
+
+export function WordPressGuide({ onCreateKey }: { onCreateKey: () => void }) {
+  const origin = useOrigin()
+  const steps = [
+    {
+      title: "Download the plugin",
+      text: "It already knows this app's address.",
+      action: (
+        <Button asChild>
+          <a href="/api/wordpress-plugin" download>
+            <DownloadIcon />
+            Download .zip
+          </a>
+        </Button>
+      ),
+    },
+    {
+      title: "Install it",
+      text: "In WordPress: Plugins › Add New › Upload Plugin, then Activate.",
+    },
+    {
+      title: "Connect",
+      text: "Settings › Marketing Agent. Paste an API key and save. It shows Connected.",
+      action: (
+        <Button variant="outline" onClick={onCreateKey}>
+          Create a key
+        </Button>
+      ),
+    },
+  ]
+
+  return (
+    <div className="flex flex-col gap-4">
+      <ol className="grid gap-3 md:grid-cols-3">
+        {steps.map((s, i) => (
+          <li
+            key={s.title}
+            className="flex flex-col gap-2 rounded-xl border bg-card p-4"
+          >
+            <span className="font-mono text-xs text-muted-foreground">
+              Step {i + 1}
+            </span>
+            <h3 className="font-heading text-sm font-semibold">{s.title}</h3>
+            <p className="flex-1 text-muted-foreground">{s.text}</p>
+            {s.action && <div className="pt-1">{s.action}</div>}
+          </li>
+        ))}
+      </ol>
+
+      <section className="overflow-hidden rounded-xl border bg-card">
+        <h3 className="border-b px-4 py-3 font-heading text-sm font-semibold">
+          Supported form plugins
+        </h3>
+        <ul>
+          {WP_FORMS.map(([name, note]) => (
+            <li
+              key={name}
+              className="flex flex-wrap gap-x-4 gap-y-0.5 border-b border-border/60 px-4 py-2.5 last:border-0"
+            >
+              <span className="w-32 font-medium">{name}</span>
+              <span className="text-muted-foreground">{note}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">
+          Every form is sent by default. To pick forms, use Forms in the plugin
+          settings.
+        </p>
+      </section>
+
+      <Fold title="Install by hand instead">
+        <p className="text-muted-foreground">
+          Create{" "}
+          <code className="font-mono text-xs">
+            wp-content/plugins/marketing-agent-connector/marketing-agent-connector.php
+          </code>{" "}
+          with this code, then activate it.
+        </p>
+        <Code code={wordpressPluginPhp(origin)} />
+      </Fold>
+      <Fold title="Keep the key out of the database">
+        <p className="text-muted-foreground">
+          Add this to <code className="font-mono text-xs">wp-config.php</code>.
+          It overrides the key on the settings page.
+        </p>
+        <Code code="define( 'MARKETING_AGENT_API_KEY', 'YOUR_API_KEY' );" />
+      </Fold>
+    </div>
+  )
+}
+
+// ------------------------------------------------------------- Developers
+
+const FIELDS = [
+  ["firstName", true, "First name"],
+  ["lastName", true, "Last name"],
+  ["email", true, "Must be unique"],
+  ["phone", false, "Phone number"],
+  ["message", false, "Free text"],
+] as const
 
 const RESPONSES = [
-  ["200", "Contact created. Returns the contact JSON."],
-  ["400", "Invalid body. Returns field errors."],
-  ["401", "Missing or invalid API key."],
-  ["409", "A contact with this email already exists."],
+  ["200", "Created; returns the contact"],
+  ["400", "Invalid body; returns field errors"],
+  ["401", "Missing or wrong API key"],
+  ["409", "Email already exists"],
 ]
 
-export function ApiDocs() {
-  // Read origin after mount so server and client HTML match.
-  const [origin, setOrigin] = useState("https://your-domain.com")
-  useEffect(() => setOrigin(window.location.origin), [])
+const LANGS = ["cURL", "Node.js", "PHP"] as const
 
+export function DeveloperDocs() {
+  const origin = useOrigin()
+  const [lang, setLang] = useState<(typeof LANGS)[number]>("cURL")
   const url = `${origin}/api/v1/add-contact`
-  const body = `{
-  "firstName": "Jane",
-  "lastName": "Doe",
-  "email": "jane@example.com",
-  "phone": "+1 555 0100",
-  "message": "I want a demo"
-}`
 
-  const curl = `curl -X POST ${url} \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
+  const code = {
+    cURL: `curl -X POST ${url} \\
+  -H "Authorization: Bearer $MARKETING_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '${body.replace(/\n\s*/g, " ")}'`
-
-  const node = `// Run on your server (Node.js, Next.js route, serverless function).
-const res = await fetch("${url}", {
+  -d '{"firstName":"Jane","lastName":"Doe","email":"jane@example.com"}'`,
+    "Node.js": `const res = await fetch("${url}", {
   method: "POST",
   headers: {
     Authorization: \`Bearer \${process.env.MARKETING_API_KEY}\`,
     "Content-Type": "application/json",
   },
-  body: JSON.stringify({
-    firstName: form.firstName,
-    lastName: form.lastName,
-    email: form.email,
-    phone: form.phone,
-    message: form.message,
-  }),
+  body: JSON.stringify({ firstName, lastName, email, phone, message }),
 })
-if (!res.ok) console.error(await res.json())`
-
-  const php = `<?php
-// Run on your server. Keep the key in an env var.
-$ch = curl_init("${url}");
+if (!res.ok) console.error(await res.json())`,
+    PHP: `$ch = curl_init("${url}");
 curl_setopt_array($ch, [
   CURLOPT_POST => true,
   CURLOPT_RETURNTRANSFER => true,
@@ -109,190 +233,98 @@ curl_setopt_array($ch, [
     "firstName" => $_POST["firstName"],
     "lastName"  => $_POST["lastName"],
     "email"     => $_POST["email"],
-    "phone"     => $_POST["phone"] ?? null,
-    "message"   => $_POST["message"] ?? null,
   ]),
 ]);
-$response = curl_exec($ch);
-$status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);`
-
-  const wpConfig = `define( 'MARKETING_AGENT_API_KEY', 'YOUR_API_KEY' );`
-
-  const wpPlugin = wordpressPluginPhp(origin)
-
-  const test = `curl ${origin}/api/v1/hello \\
-  -H "Authorization: Bearer YOUR_API_KEY"`
+$response = curl_exec($ch);`,
+  }[lang]
 
   return (
-    <section className="space-y-6 rounded-xl border bg-card p-6">
-      <div>
-        <h2 className="font-heading text-lg font-semibold tracking-tight">
-          API Documentation
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Send contacts from any website or form to this app.
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold">Authentication</h3>
-        <p className="text-sm text-muted-foreground">
-          Send your API key in the <code>Authorization</code> header on every
-          request.
-        </p>
-        <Code code="Authorization: Bearer YOUR_API_KEY" />
-        <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs">
-          Keep your API key secret. Call this API from your server only. Do not
-          put the key in browser JavaScript or HTML, because anyone can read it
-          there.
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold">Test your key</h3>
-        <p className="text-sm text-muted-foreground">
-          <code>GET /api/v1/hello</code> returns a message if the key works.
-        </p>
-        <Code code={test} />
-      </div>
-
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold">Add a contact</h3>
-        <p className="font-mono text-sm">
-          <span className="font-semibold">POST</span> {url}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Creates a contact. The app then sends one enabled campaign to the
-          contact automatically.
-        </p>
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-xs">
-            <thead className="bg-muted/30 text-left">
-              <tr>
-                <th className="p-2">Field</th>
-                <th className="p-2">Type</th>
-                <th className="p-2">Required</th>
-                <th className="p-2">Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {FIELDS.map(([name, type, req, note]) => (
-                <tr key={name} className="border-t">
-                  <td className="p-2 font-mono">{name}</td>
-                  <td className="p-2">{type}</td>
-                  <td className="p-2">{req}</td>
-                  <td className="p-2 text-muted-foreground">{note}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <div className="flex flex-col gap-4">
+      <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+        <div className="flex items-center gap-2 overflow-x-auto">
+          <span className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-[11px] font-medium text-primary">
+            POST
+          </span>
+          <code className="font-mono text-xs whitespace-nowrap">{url}</code>
+          <CopyButton text={url} className="ml-auto" />
         </div>
-        <p className="text-sm text-muted-foreground">Example body:</p>
-        <Code code={body} />
-      </div>
+        <p className="text-muted-foreground">
+          Adds a contact, then sends it one active campaign. Send{" "}
+          <code className="font-mono text-xs text-foreground">
+            Authorization: Bearer YOUR_API_KEY
+          </code>
+          . Call it from your server only; a key in browser code is public.
+        </p>
+      </section>
 
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold">Responses</h3>
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-xs">
-            <tbody>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <div className="flex flex-col gap-4">
+          <section className="overflow-hidden rounded-xl border bg-card">
+            <h3 className="border-b px-4 py-3 font-heading text-sm font-semibold">
+              Body (JSON)
+            </h3>
+            <ul>
+              {FIELDS.map(([name, required, note]) => (
+                <li
+                  key={name}
+                  className="flex items-center gap-3 border-b border-border/60 px-4 py-2 last:border-0"
+                >
+                  <code className="w-24 font-mono text-xs">{name}</code>
+                  <span className="flex-1 text-muted-foreground">{note}</span>
+                  <span
+                    className={cn(
+                      "text-xs",
+                      required ? "text-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    {required ? "Required" : "Optional"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section className="overflow-hidden rounded-xl border bg-card">
+            <h3 className="border-b px-4 py-3 font-heading text-sm font-semibold">
+              Responses
+            </h3>
+            <ul>
               {RESPONSES.map(([status, note]) => (
-                <tr key={status} className="border-t first:border-t-0">
-                  <td className="w-16 p-2 font-mono">{status}</td>
-                  <td className="p-2 text-muted-foreground">{note}</td>
-                </tr>
+                <li
+                  key={status}
+                  className="flex gap-3 border-b border-border/60 px-4 py-2 last:border-0"
+                >
+                  <code className="w-10 font-mono text-xs">{status}</code>
+                  <span className="text-muted-foreground">{note}</span>
+                </li>
               ))}
-            </tbody>
-          </table>
+            </ul>
+          </section>
         </div>
-      </div>
 
-      <div className="space-y-3">
-        <h3 className="text-sm font-semibold">WordPress</h3>
-        <p className="text-sm text-muted-foreground">
-          This small plugin sends every form submission to this app. It works
-          with Contact Form 7, WPForms, Elementor Pro Forms and Gravity Forms.
-          It needs PHP 7.4 or newer.
-        </p>
-        <ol className="list-decimal space-y-3 pl-5 text-sm">
-          <li className="space-y-2">
-            <p>Download the plugin:</p>
-            <Button asChild variant="outline">
-              <a href="/api/wordpress-plugin" download>
-                <DownloadIcon className="mr-2 h-4 w-4" />
-                Download WordPress plugin (.zip)
-              </a>
-            </Button>
-          </li>
-          <li>
-            In WordPress admin, go to <strong>Plugins</strong> →{" "}
-            <strong>Add New Plugin</strong> → <strong>Upload Plugin</strong>.
-            Choose the zip file. Click <strong>Install Now</strong>, then{" "}
-            <strong>Activate</strong>.
-          </li>
-          <li>
-            Go to <strong>Settings</strong> → <strong>Marketing Agent</strong>.
-            Check the <strong>Base URL</strong> is <code>{origin}</code>. Paste
-            your <strong>API key</strong> and click{" "}
-            <strong>Save Changes</strong>. The page shows &quot;Connected&quot;
-            when both are right.
-          </li>
-          <li className="space-y-2">
-            <p>Set up your form fields:</p>
-            <div className="overflow-x-auto rounded-lg border">
-              <table className="w-full text-xs">
-                <tbody>
-                  {WP_FIELDS.map(([plugin, note]) => (
-                    <tr key={plugin} className="border-t first:border-t-0">
-                      <td className="w-40 p-2 font-medium">{plugin}</td>
-                      <td className="p-2 text-muted-foreground">{note}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </li>
-          <li>
-            Send a test form. The contact shows on the Contacts page. If not,
-            check <code>wp-content/debug.log</code> for lines that start with
-            &quot;Marketing Agent&quot;. Turn on <code>WP_DEBUG_LOG</code> to
-            get this log.
-          </li>
-        </ol>
-        <p className="text-xs text-muted-foreground">
-          Forms need a name and a valid email. Forms without them are skipped.
-          By default every form on the site is sent. To send only some forms,
-          pick them under <strong>Forms</strong> on the plugin settings page.
-        </p>
-        <details className="text-xs">
-          <summary className="cursor-pointer text-muted-foreground">
-            Or install by hand: create{" "}
-            <code>
-              wp-content/plugins/marketing-agent-connector/marketing-agent-connector.php
-            </code>{" "}
-            with this code
-          </summary>
-          <div className="mt-2">
-            <Code code={wpPlugin} />
+        <section className="flex min-w-0 flex-col rounded-xl border bg-card">
+          <div className="flex items-center gap-1 border-b px-2 py-1.5">
+            {LANGS.map((l) => (
+              <button
+                key={l}
+                type="button"
+                aria-pressed={lang === l}
+                onClick={() => setLang(l)}
+                className={cn(
+                  "h-7 rounded-md px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground",
+                  lang === l && "bg-muted text-foreground",
+                )}
+              >
+                {l}
+              </button>
+            ))}
           </div>
-        </details>
-        <p className="text-xs text-muted-foreground">
-          Optional: to keep the key out of the database, add this line to{" "}
-          <code>wp-config.php</code> instead. It overrides the settings page.
-        </p>
-        <Code code={wpConfig} />
+          <Code code={code} bare className="px-1 py-2" />
+          <p className="mt-auto border-t px-4 py-2.5 text-xs text-muted-foreground">
+            Test a key:{" "}
+            <code className="font-mono">GET {origin}/api/v1/hello</code>
+          </p>
+        </section>
       </div>
-
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold">Examples</h3>
-        <p className="text-xs text-muted-foreground">cURL</p>
-        <Code code={curl} />
-        <p className="text-xs text-muted-foreground">Node.js / JavaScript</p>
-        <Code code={node} />
-        <p className="text-xs text-muted-foreground">PHP</p>
-        <Code code={php} />
-      </div>
-    </section>
+    </div>
   )
 }
