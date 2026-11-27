@@ -222,13 +222,12 @@ export default function ContactsPage() {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Sync block lists from Mailgun"
+              variant="outline"
               disabled={sync.isPending}
               onClick={() => sync.mutate()}
             >
               <RefreshCwIcon className={cn(sync.isPending && "animate-spin")} />
+              {sync.isPending ? "Syncing…" : "Sync Mailgun"}
             </Button>
           </TooltipTrigger>
           <TooltipContent>

@@ -34,7 +34,13 @@ async function fetchList(account: Account, list: SuppressionList) {
       signal: AbortSignal.timeout(30_000),
     })
     if (!res.ok) {
-      throw new Error(`Mailgun ${res.status} reading ${list}`)
+      throw new Error(
+        res.status === 401 || res.status === 403
+          ? "API key can't read block lists. Use a full-access Mailgun API key, not a domain Sending key"
+          : res.status === 404
+            ? "domain not found (EU-region domains aren't supported)"
+            : `Mailgun ${res.status} reading ${list}`,
+      )
     }
     const body = (await res.json()) as {
       items: Item[]
@@ -98,7 +104,10 @@ export async function syncSuppressions() {
   results.forEach((r, i) => {
     const { a, list } = jobs[i]
     if (r.status === "fulfilled") byList[list].push(...r.value)
-    else errors.push(`${a.domain}: ${String(r.reason?.message ?? r.reason)}`)
+    else {
+      const msg = `${a.domain}: ${String(r.reason?.message ?? r.reason)}`
+      if (!errors.includes(msg)) errors.push(msg)
+    }
   })
 
   const marked = {
